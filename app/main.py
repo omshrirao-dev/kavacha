@@ -6,7 +6,6 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.cors import CORSMiddleware
-from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 load_dotenv()
 
@@ -40,9 +39,11 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
-if not IS_DEV:
-    app.add_middleware(HTTPSRedirectMiddleware)
-
+# No app-level HTTPSRedirectMiddleware: Railway terminates TLS at its edge
+# and already enforces HTTPS for the public domain, and Railway's own
+# healthcheck hits this container directly over plain HTTP on the private
+# network (bypassing that edge) -- the middleware would 307-redirect that
+# probe and the deploy would never go healthy.
 app.add_middleware(SupabaseAuthMiddleware)
 
 # Added last (outermost) so CORS preflight (OPTIONS) is answered before the

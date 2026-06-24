@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+e2e_test_venv/
+chroma_data/
+__pycache__/
+*.pyc
+.git/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+frontend/
+kavacha-sdk/
+*.log
+.claude/
