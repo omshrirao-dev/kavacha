@@ -126,6 +126,17 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_log_actor_id ON audit_log(actor_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
 
+-- SendGrid notification wiring (Day 12-13): kavacha_app needs to resolve
+-- owner_id -> email to actually send anything, but must never get direct
+-- access to auth.users (password hashes, etc. -- Rule 4 least privilege).
+-- Postgres views run with the OWNER's privileges against the underlying
+-- table, not the querying role's -- so granting SELECT on just this view
+-- (exposing only id+email) is sufficient without touching auth.users grants.
+CREATE OR REPLACE VIEW public.user_emails AS
+SELECT id, email FROM auth.users;
+
+GRANT SELECT ON public.user_emails TO kavacha_app;
+
 -- Supabase auto-enables RLS on every table created in `public`, which
 -- defaults to deny-all once enabled. Kavacha's own backend (kavacha_app)
 -- authorizes in application code (FastAPI verifies the JWT, then filters

@@ -17,3 +17,4 @@ slowapi
 anthropic
 google-genai
 groq
+sendgrid

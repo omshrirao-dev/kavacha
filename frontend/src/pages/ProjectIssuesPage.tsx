@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { ErrorBanner } from '../components/ErrorBanner'
+import { ProjectHeader } from '../components/ProjectHeader'
 import { ProjectTabs } from '../components/ProjectTabs'
+import { Spinner } from '../components/Spinner'
 import { ApiError, apiFetch } from '../lib/api'
 import type { Issue } from '../lib/types'
 
@@ -26,12 +29,12 @@ export function ProjectIssuesPage() {
 
   return (
     <div>
+      <ProjectHeader projectId={projectId} />
       <ProjectTabs projectId={projectId} />
-      <h1 className="mb-1 text-2xl font-semibold text-gray-900">Issue Log</h1>
       <p className="mb-6 text-sm text-gray-500">Every issue Kavacha has detected for this project.</p>
 
-      {error && <p className="text-red-600">{error}</p>}
-      {!error && issues === null && <p className="text-gray-500">Loading issues...</p>}
+      {error && <ErrorBanner message={error} />}
+      {!error && issues === null && <Spinner label="Loading issues..." />}
       {issues?.length === 0 && <p className="text-gray-500">No issues detected. This project is healthy.</p>}
 
       {issues && issues.length > 0 && (

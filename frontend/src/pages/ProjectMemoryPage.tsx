@@ -1,6 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
+import { ErrorBanner } from '../components/ErrorBanner'
+import { ProjectHeader } from '../components/ProjectHeader'
 import { ProjectTabs } from '../components/ProjectTabs'
+import { Spinner } from '../components/Spinner'
 import { ApiError, apiFetch } from '../lib/api'
 import type { MemoryEntry, MemorySearchResult } from '../lib/types'
 
@@ -59,8 +62,8 @@ export function ProjectMemoryPage() {
 
   return (
     <div>
+      <ProjectHeader projectId={projectId} />
       <ProjectTabs projectId={projectId} />
-      <h1 className="mb-1 text-2xl font-semibold text-gray-900">Project Memory</h1>
       <p className="mb-6 text-sm text-gray-500">Every architectural decision, and why it was made.</p>
 
       <form onSubmit={handleSearch} className="mb-6 flex gap-2">
@@ -89,7 +92,7 @@ export function ProjectMemoryPage() {
         )}
       </form>
 
-      {error && <p className="mb-4 text-red-600">{error}</p>}
+      {error && <ErrorBanner message={error} />}
 
       <div className="space-y-3">
         {searchResults ? (
@@ -99,7 +102,7 @@ export function ProjectMemoryPage() {
             searchResults.map((r) => <MemoryCard key={r.id} entry={r} />)
           )
         ) : entries === null ? (
-          <p className="text-gray-500">Loading memory...</p>
+          <Spinner label="Loading memory..." />
         ) : entries.length === 0 ? (
           <p className="text-gray-500">No decisions recorded for this project yet.</p>
         ) : (

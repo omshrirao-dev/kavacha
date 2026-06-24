@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { ErrorBanner } from '../components/ErrorBanner'
+import { ProjectHeader } from '../components/ProjectHeader'
 import { ProjectTabs } from '../components/ProjectTabs'
+import { Spinner } from '../components/Spinner'
 import { ApiError, apiFetch } from '../lib/api'
 import type { CEOReviewResult, MemoryEntry } from '../lib/types'
 
@@ -81,8 +84,8 @@ export function ProjectReviewPage() {
 
   return (
     <div>
+      <ProjectHeader projectId={projectId} />
       <ProjectTabs projectId={projectId} />
-      <h1 className="mb-1 text-2xl font-semibold text-gray-900">CEO Review</h1>
       <p className="mb-6 text-sm text-gray-500">
         The AI switches roles entirely -- it becomes the demanding client, comparing what was promised against what was delivered.
       </p>
@@ -96,12 +99,12 @@ export function ProjectReviewPage() {
         {running ? 'Reviewing as CEO...' : 'Run CEO Review'}
       </button>
 
-      {error && <p className="mb-4 text-red-600">{error}</p>}
+      {error && <ErrorBanner message={error} />}
       {result && <ResultBanner result={result} />}
 
       <h2 className="mb-3 text-sm font-semibold text-gray-700">Review History</h2>
       {history === null ? (
-        <p className="text-gray-500">Loading history...</p>
+        <Spinner label="Loading history..." />
       ) : history.length === 0 ? (
         <p className="text-gray-500">No reviews run yet.</p>
       ) : (

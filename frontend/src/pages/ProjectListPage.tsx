@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ErrorBanner } from '../components/ErrorBanner'
 import { HealthBadge } from '../components/HealthBadge'
+import { Spinner } from '../components/Spinner'
 import { ApiError, apiFetch } from '../lib/api'
 import type { Project } from '../lib/types'
 
@@ -14,8 +16,8 @@ export function ProjectListPage() {
       .catch((err: ApiError) => setError(err.message))
   }, [])
 
-  if (error) return <p className="text-red-600">Failed to load projects: {error}</p>
-  if (!projects) return <p className="text-gray-500">Loading projects...</p>
+  if (error) return <ErrorBanner message={`Failed to load projects: ${error}`} />
+  if (!projects) return <Spinner label="Loading projects..." />
 
   return (
     <div>

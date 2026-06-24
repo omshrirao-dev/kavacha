@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { ErrorBanner } from '../components/ErrorBanner'
+import { ProjectHeader } from '../components/ProjectHeader'
 import { ProjectTabs } from '../components/ProjectTabs'
+import { Spinner } from '../components/Spinner'
 import { ApiError, apiFetch } from '../lib/api'
 import type { ComplianceReport, CostIntelligence, FixPattern, MonitorStatus } from '../lib/types'
 
@@ -114,13 +117,13 @@ export function ProjectMonitorPage() {
 
   return (
     <div>
+      <ProjectHeader projectId={projectId} />
       <ProjectTabs projectId={projectId} />
-      <h1 className="mb-1 text-2xl font-semibold text-gray-900">Monitor -- Stage 7</h1>
       <p className="mb-6 text-sm text-gray-500">The permanent AI engineer that never sleeps.</p>
 
-      {error && <p className="mb-4 text-red-600">{error}</p>}
+      {error && <ErrorBanner message={error} />}
 
-      <div className="mb-6 flex gap-2">
+      <div className="mb-6 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => handleStartStop('start')}
@@ -148,7 +151,7 @@ export function ProjectMonitorPage() {
         <button
           type="button"
           onClick={handleComplianceReport}
-          className="ml-auto rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 sm:ml-auto"
         >
           Download Compliance Report
         </button>
@@ -176,11 +179,11 @@ export function ProjectMonitorPage() {
       )}
 
       <h2 className="mb-3 text-sm font-semibold text-gray-700">Cost Intelligence</h2>
-      {cost ? <CostWidget cost={cost} /> : <p className="text-gray-500">Loading...</p>}
+      {cost ? <CostWidget cost={cost} /> : <Spinner label="Loading cost data..." />}
 
       <h2 className="mb-3 mt-6 text-sm font-semibold text-gray-700">Cross-Project Patterns</h2>
       {patterns === null ? (
-        <p className="text-gray-500">Loading...</p>
+        <Spinner label="Loading patterns..." />
       ) : patterns.length === 0 ? (
         <p className="text-gray-500">No fix patterns learned yet across any project.</p>
       ) : (
