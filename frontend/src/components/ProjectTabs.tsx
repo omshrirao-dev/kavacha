@@ -6,6 +6,8 @@ export function ProjectTabs({ projectId }: { projectId: string }) {
   const tabs = [
     { label: 'Memory', to: `/projects/${projectId}/memory` },
     { label: 'Issues', to: `/projects/${projectId}/issues` },
+    { label: 'CEO Review', to: `/projects/${projectId}/review` },
+    { label: 'Monitor', to: `/projects/${projectId}/monitor` },
   ]
 
   return (

@@ -45,11 +45,12 @@ def store_memory(
     return memory_id
 
 
-def search_memory(project_id: str, query: str, n_results: int = 5) -> list[dict]:
+def search_memory(project_id: str, query: str, n_results: int = 5, stage: str | None = None) -> list[dict]:
+    where = {"project_id": project_id} if stage is None else {"$and": [{"project_id": project_id}, {"stage": stage}]}
     results = get_collection().query(
         query_texts=[query],
         n_results=n_results,
-        where={"project_id": project_id},
+        where=where,
     )
 
     ids = results["ids"][0]

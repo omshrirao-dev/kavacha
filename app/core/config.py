@@ -25,8 +25,16 @@ class Settings(BaseSettings):
     # silently leaves a deployment on the dev-only Gemini path.
     llm_provider: str = "claude"
     gemini_api_key: str | None = None
+    groq_api_key: str | None = None
 
     chroma_persist_dir: str = "./chroma_data"
+
+    # No SendGrid account exists yet -- "log" always works (writes the plain-
+    # language notification to the server log + audit trail) and is the safe
+    # default. Set to "sendgrid" once SENDGRID_API_KEY is actually configured.
+    notification_provider: str = "log"
+    sendgrid_api_key: str | None = None
+    notification_from_email: str = "alerts@kavacha.dev"
 
     # Comma-separated list of allowed frontend origins. Never "*" -- the
     # dashboard sends an Authorization header, and CORS forbids combining

@@ -7,6 +7,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.audit import log_access
 from app.core.llm_provider import get_llm_response
+from app.core.llm_usage import record_llm_usage
 from app.db.database import get_connection
 from app.memory.engine import store_memory
 from app.memory.sanitize import sanitize_content
@@ -121,12 +122,15 @@ def _strip_markdown_fences(text: str) -> str:
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=30))
-def _call_architect_llm(sanitized_idea: str) -> ArchitectSpec:
+def _call_architect_llm(sanitized_idea: str, project_id: str) -> ArchitectSpec:
     # The provider abstraction is plain text in/out (no LangChain tool-calling),
     # so structured output is enforced via prompt + manual JSON parsing here --
     # this is what makes the same parsing logic work for either provider.
-    raw = get_llm_response(prompt=_build_user_message(sanitized_idea), system_prompt=_full_system_prompt())
-    cleaned = _strip_markdown_fences(raw)
+    response = get_llm_response(prompt=_build_user_message(sanitized_idea), system_prompt=_full_system_prompt())
+    # Record usage from every attempt, even ones that fail to parse below --
+    # each attempt is a real billed call regardless of whether JSON parses.
+    record_llm_usage(project_id, purpose="architect_run", response=response)
+    cleaned = _strip_markdown_fences(response.text)
     parsed = json.loads(cleaned)
     return ArchitectSpec.model_validate(parsed)
 
@@ -146,9 +150,28 @@ def run_architect_agent(idea: str, project_name: str, owner_id: str) -> dict:
     project_id = _create_project(project_name, owner_id)
 
     try:
-        spec = _call_architect_llm(sanitized_idea)
+        spec = _call_architect_llm(sanitized_idea, project_id)
 
         memory_entry_ids = []
+
+        # The 8 discovery answers (incl. monthly budget) were previously only
+        # returned in the API response, never persisted -- Cost Intelligence
+        # (Track B) needs the approved budget to actually exist in memory.
+        discovery_content = "\n".join(
+            f"{field}: {value}" for field, value in spec.discovery.model_dump().items()
+        )
+        memory_entry_ids.append(
+            store_memory(
+                project_id=project_id,
+                stage=STAGE,
+                content=discovery_content,
+                layer="discovery",
+                decision_type="discovery_answers",
+                impact_level="high",
+                source="ai",
+            )
+        )
+
         for layer_name in LAYER_NAMES:
             layer: LayerDecision = getattr(spec, layer_name)
             content = (

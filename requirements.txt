@@ -16,3 +16,4 @@ httpx
 slowapi
 anthropic
 google-genai
+groq

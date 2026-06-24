@@ -53,6 +53,64 @@ CREATE TABLE IF NOT EXISTS monitor_tests (
 );
 CREATE INDEX IF NOT EXISTS idx_monitor_tests_project_id ON monitor_tests(project_id);
 
+-- Not in the original spec schema, but required to actually compute
+-- pass_rate_7d and detect drift over time -- monitor_tests is "current
+-- state per test," this is the run-by-run history that state is derived from.
+CREATE TABLE IF NOT EXISTS monitor_test_runs (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    monitor_test_id UUID NOT NULL REFERENCES monitor_tests(id) ON DELETE CASCADE,
+    project_id      UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    ran_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    passed          BOOLEAN NOT NULL,
+    severity        TEXT,
+    response_text   TEXT,
+    similarity_score NUMERIC
+);
+CREATE INDEX IF NOT EXISTS idx_monitor_test_runs_test_id ON monitor_test_runs(monitor_test_id);
+CREATE INDEX IF NOT EXISTS idx_monitor_test_runs_project_id ON monitor_test_runs(project_id);
+
+-- Not in the original spec schema, but required to make Cost Intelligence
+-- (Addition 2) real rather than fabricated -- captures actual token usage
+-- from every LLM call so cost trajectory can be computed from real numbers.
+CREATE TABLE IF NOT EXISTS llm_usage (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id          UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    provider            TEXT NOT NULL,
+    model               TEXT NOT NULL,
+    input_tokens        INTEGER NOT NULL,
+    output_tokens       INTEGER NOT NULL,
+    estimated_cost_usd  NUMERIC NOT NULL,
+    purpose             TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_llm_usage_project_id ON llm_usage(project_id);
+
+-- Addition 1 (Cross-Project Pattern Learning): deliberately GLOBAL, no
+-- project_id. The whole point is patterns learned fixing project A inform
+-- project B -- per-project scoping would defeat the purpose.
+CREATE TABLE IF NOT EXISTS fix_patterns (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    issue_type          TEXT NOT NULL,
+    root_cause_pattern  TEXT NOT NULL,
+    fix_template        TEXT NOT NULL,
+    success_rate        NUMERIC NOT NULL DEFAULT 0,
+    project_count       INTEGER NOT NULL DEFAULT 0,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_fix_patterns_issue_type ON fix_patterns(issue_type);
+
+-- Addition 3 (Compliance Report Generator): stores each generated report so
+-- the reports themselves are auditable and re-fetchable, not ephemeral.
+CREATE TABLE IF NOT EXISTS compliance_snapshots (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id      UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    generated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    generated_by    UUID NOT NULL,
+    report          JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_compliance_snapshots_project_id ON compliance_snapshots(project_id);
+
 -- Security Addendum Rule 3 (Immutable Audit Trail): every authenticated
 -- access is recorded here by the auth middleware itself, so new routes
 -- under /api/v1 are covered automatically without remembering to log.
@@ -77,7 +135,10 @@ DO $$
 DECLARE
     t TEXT;
 BEGIN
-    FOREACH t IN ARRAY ARRAY['projects', 'project_memory', 'issues', 'monitor_tests', 'audit_log']
+    FOREACH t IN ARRAY ARRAY[
+        'projects', 'project_memory', 'issues', 'monitor_tests', 'audit_log',
+        'monitor_test_runs', 'llm_usage', 'fix_patterns', 'compliance_snapshots'
+    ]
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS kavacha_app_full_access ON %I', t);
         EXECUTE format(

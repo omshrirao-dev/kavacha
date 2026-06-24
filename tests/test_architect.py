@@ -91,13 +91,13 @@ def test_architect_run_end_to_end():
         ]:
             assert spec["discovery"][question_field]
 
-        # Decisions stored in Project Memory
-        assert len(body["memory_entry_ids"]) == 8
+        # Decisions stored in Project Memory: 8 layers + 1 discovery-answers entry
+        assert len(body["memory_entry_ids"]) == 9
         conn = psycopg2.connect(settings.database_url)
         with conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM project_memory WHERE project_id = %s", (project_id,))
             count = cur.fetchone()[0]
-        assert count == 8
+        assert count == 9
 
         # Semantic search finds decisions correctly
         results = search_memory(project_id, "how will this scale to thousands of daily users", n_results=3)
