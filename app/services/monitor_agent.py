@@ -181,7 +181,14 @@ _CURRENCY_TO_USD = {"inr": 1 / 83, "rs": 1 / 83, "usd": 1.0}  # approximate FX; 
 # Word boundaries on the currency words are required -- without them "rs"
 # matches inside ordinary words like "customers", and the amount group must
 # require at least one digit -- otherwise a lone "," satisfies `[\d,]+`.
-_AMOUNT_RE = re.compile(r"(?P<currency>₹|\$|\binr\b|\brs\.?\b|\busd\b)?\s*(?P<amount>\d[\d,]*(?:\.\d+)?)", re.IGNORECASE)
+#
+# Found via real testing (Day 17-18 E2E): currency was originally optional,
+# so re.search() matched the FIRST bare number anywhere in the discovery text
+# (e.g. "fewer than 10 users" in expected_traffic) and silently defaulted it
+# to USD -- producing a budget that was never actually written down anywhere.
+# Currency must be mandatory in the match itself, not just checked after the
+# fact, since re.search() stops at the first match regardless.
+_AMOUNT_RE = re.compile(r"(?P<currency>₹|\$|\binr\b|\brs\.?\b|\busd\b)\s*(?P<amount>\d[\d,]*(?:\.\d+)?)", re.IGNORECASE)
 
 
 def _parse_budget_to_usd(text: str) -> float | None:
@@ -189,7 +196,7 @@ def _parse_budget_to_usd(text: str) -> float | None:
     if not match:
         return None
     amount = float(match.group("amount").replace(",", ""))
-    currency = (match.group("currency") or "usd").lower().strip(".")
+    currency = match.group("currency").lower().strip(".")
     if currency == "₹":
         currency = "inr"
     rate = _CURRENCY_TO_USD.get(currency, 1.0)
