@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kavacha"
+version = "0.1.0"
+description = "Kavacha -- autonomous AI maintenance infrastructure. Official Python SDK."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = ["requests>=2.28"]
+
+[tool.setuptools.packages.find]
+include = ["kavacha*"]
+
+[tool.setuptools.package-data]
+kavacha = ["py.typed"]

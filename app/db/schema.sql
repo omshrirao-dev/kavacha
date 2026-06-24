@@ -111,6 +111,36 @@ CREATE TABLE IF NOT EXISTS compliance_snapshots (
 );
 CREATE INDEX IF NOT EXISTS idx_compliance_snapshots_project_id ON compliance_snapshots(project_id);
 
+-- Day 15-16 (Python SDK): API keys are long-lived bearer credentials
+-- embedded in OTHER PEOPLE's server code -- a different threat model than
+-- the dashboard's short-lived Supabase JWTs. Never store the raw key, only
+-- a hash (same principle as password storage). key_prefix is just enough
+-- to let a human recognize which key is which in a UI without exposing it.
+CREATE TABLE IF NOT EXISTS api_keys (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id      UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    key_hash        TEXT NOT NULL UNIQUE,
+    key_prefix      TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_used_at    TIMESTAMPTZ,
+    revoked         BOOLEAN NOT NULL DEFAULT false
+);
+CREATE INDEX IF NOT EXISTS idx_api_keys_project_id ON api_keys(project_id);
+
+-- Lightweight, metadata-only record of calls observed through kavacha.watch()
+-- -- Security Addendum Rule 5: never the raw prompt/response, just enough to
+-- prove the SDK is alive and show basic latency/error-rate on the dashboard.
+CREATE TABLE IF NOT EXISTS sdk_events (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id      UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    event_type      TEXT NOT NULL,
+    success         BOOLEAN,
+    latency_ms      INTEGER,
+    metadata        JSONB,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sdk_events_project_id ON sdk_events(project_id);
+
 -- Security Addendum Rule 3 (Immutable Audit Trail): every authenticated
 -- access is recorded here by the auth middleware itself, so new routes
 -- under /api/v1 are covered automatically without remembering to log.
@@ -148,7 +178,8 @@ DECLARE
 BEGIN
     FOREACH t IN ARRAY ARRAY[
         'projects', 'project_memory', 'issues', 'monitor_tests', 'audit_log',
-        'monitor_test_runs', 'llm_usage', 'fix_patterns', 'compliance_snapshots'
+        'monitor_test_runs', 'llm_usage', 'fix_patterns', 'compliance_snapshots',
+        'api_keys', 'sdk_events'
     ]
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS kavacha_app_full_access ON %I', t);

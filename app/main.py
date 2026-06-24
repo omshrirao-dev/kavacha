@@ -10,7 +10,7 @@ from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 load_dotenv()
 
-from app.api.v1 import architect, ceo_review, compliance, fix_patterns, issues, memory, monitor, projects  # noqa: E402
+from app.api.v1 import architect, ceo_review, compliance, fix_patterns, issues, memory, monitor, projects, sdk  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.core.limiter import limiter  # noqa: E402
 from app.core.middleware import SupabaseAuthMiddleware  # noqa: E402
@@ -63,6 +63,7 @@ app.include_router(ceo_review.router)
 app.include_router(monitor.router)
 app.include_router(compliance.router)
 app.include_router(fix_patterns.router)
+app.include_router(sdk.router)
 
 
 @app.get("/")
