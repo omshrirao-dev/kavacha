@@ -50,11 +50,32 @@ const STAGES: Stage[] = [
   },
 ]
 
+// Shared <defs> for the connector lines -- one gradient definition, referenced
+// by every "energized" segment via url(#kavacha-pipeline-gradient), so the
+// signature purple->saffron gradient is the thing that visibly flows through
+// the pipeline, not just a flat saffron line with a moving dash.
+function PipelineGradientDefs() {
+  return (
+    <svg width="0" height="0" className="absolute">
+      <defs>
+        <linearGradient id="kavacha-pipeline-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="var(--gradient-start)" />
+          <stop offset="25%" stopColor="var(--gradient-mid1)" />
+          <stop offset="50%" stopColor="var(--gradient-mid2)" />
+          <stop offset="75%" stopColor="var(--gradient-mid3)" />
+          <stop offset="100%" stopColor="var(--gradient-end)" />
+        </linearGradient>
+      </defs>
+    </svg>
+  )
+}
+
 export function PipelineVisual() {
   const [active, setActive] = useState<number | null>(null)
 
   return (
     <div className="w-full">
+      <PipelineGradientDefs />
       <div className="flex items-center">
         {STAGES.map((stage, i) => (
           <div key={stage.n} className="flex flex-1 items-center last:flex-initial">
@@ -65,7 +86,7 @@ export function PipelineVisual() {
             >
               <motion.div
                 whileHover={{ scale: 1.08 }}
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-sm font-semibold transition-colors sm:h-14 sm:w-14 ${
+                className={`gradient-border flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-sm font-semibold transition-colors sm:h-14 sm:w-14 ${
                   stage.built
                     ? 'border-saffron bg-saffron/10 text-saffron-bright shadow-[0_0_18px_-2px_var(--saffron-glow)]'
                     : 'border-edge bg-card text-ink-faint'
@@ -94,7 +115,7 @@ export function PipelineVisual() {
                     y1="1"
                     x2="100"
                     y2="1"
-                    stroke="var(--saffron-primary)"
+                    stroke="url(#kavacha-pipeline-gradient)"
                     strokeWidth="2"
                     vectorEffect="non-scaling-stroke"
                     className="animate-flow"

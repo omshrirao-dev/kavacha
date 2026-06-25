@@ -178,7 +178,7 @@ export function ProjectMonitorPage() {
           type="button"
           onClick={() => handleStartStop('start')}
           disabled={running}
-          className="rounded-md bg-saffron px-4 py-2 text-sm font-medium text-surface hover:bg-saffron-bright disabled:opacity-50"
+          className="rounded-md gradient-bg px-4 py-2 text-sm font-medium text-surface disabled:opacity-50"
         >
           Start Monitoring
         </button>

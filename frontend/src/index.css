@@ -54,6 +54,23 @@
   --text-primary: #f5f0e8;
   --text-secondary: #a89f90;
   --text-muted: #6b6358;
+
+  /* The signature gradient -- purple -> mauve -> rose -> coral -> saffron.
+     Status colors (health-*) stay deliberately flat/separate from this --
+     severity needs to read instantly, not compete with a brand flourish. */
+  --gradient-start: #8b5cf6;
+  --gradient-mid1: #a874c4;
+  --gradient-mid2: #c9758e;
+  --gradient-mid3: #e08a6b;
+  --gradient-end: #ff8c1a;
+  --kavacha-gradient: linear-gradient(
+    135deg,
+    var(--gradient-start) 0%,
+    var(--gradient-mid1) 25%,
+    var(--gradient-mid2) 50%,
+    var(--gradient-mid3) 75%,
+    var(--gradient-end) 100%
+  );
 }
 
 body {
@@ -101,4 +118,89 @@ body {
 .animate-flow {
   stroke-dasharray: 6 6;
   animation: flow-dash 1s linear infinite;
+}
+
+@keyframes gradient-flow {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Wordmark / headline keywords: gradient text via background-clip. */
+.gradient-text {
+  background: var(--kavacha-gradient);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-flow 8s ease infinite;
+}
+
+/* Primary CTAs: gradient fill, flows faster on hover (2s vs the ambient 8s)
+   -- a deliberately different speed so hover reads as "energized," not
+   just "the same animation, closer up." */
+.gradient-bg {
+  background: var(--kavacha-gradient);
+  background-size: 200% auto;
+  animation: gradient-flow 8s ease infinite;
+}
+
+.gradient-bg:hover {
+  animation-duration: 2s;
+}
+
+/* Card hover / active-state borders: an animated gradient edge using a
+   padding-box/border-box double-background trick (a real animated gradient
+   *border* isn't directly supported by the `border` property). */
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--kavacha-gradient);
+  background-size: 200% auto;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: gradient-flow 8s ease infinite;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.gradient-border:hover::before {
+  opacity: 1;
+}
+
+/* "All good" health state: a subtle gradient glow rather than a flat one --
+   reserved for the one moment everything is healthy, not used for severity
+   itself (severity stays solid health-green/yellow/red, see HealthBadge). */
+.gradient-glow-ok {
+  box-shadow: 0 0 32px -8px var(--gradient-mid3);
+}
+
+/* Loading states: a gradient pulse instead of a flat saffron one. */
+@keyframes gradient-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.gradient-pulse {
+  background: var(--kavacha-gradient);
+  background-size: 200% auto;
+  animation: gradient-flow 8s ease infinite, gradient-pulse 1.6s ease-in-out infinite;
 }

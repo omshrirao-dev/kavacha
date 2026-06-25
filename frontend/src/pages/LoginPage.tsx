@@ -48,7 +48,7 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-md bg-saffron px-3 py-2 text-sm font-medium text-surface hover:bg-saffron-bright disabled:opacity-50"
+          className="w-full rounded-md gradient-bg px-3 py-2 text-sm font-medium text-surface disabled:opacity-50"
         >
           {submitting ? 'Signing in...' : 'Sign in'}
         </button>

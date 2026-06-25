@@ -19,7 +19,7 @@ function HealthOverview({ projects }: { projects: Project[] }) {
   }[overall]
 
   return (
-    <div className="mb-8 flex items-center gap-4 rounded-xl border border-edge bg-card p-6">
+    <div className={`mb-8 flex items-center gap-4 rounded-xl border border-edge bg-card p-6 ${overall === 'green' ? 'gradient-glow-ok' : ''}`}>
       <HealthBadge status={overall} />
       <div>
         <p className="font-medium text-ink">{MESSAGE}</p>

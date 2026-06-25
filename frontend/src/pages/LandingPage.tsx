@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { PipelineVisual } from '../components/PipelineVisual'
+import { useAuth } from '../context/AuthContext'
 
 const DIFFERENTIATORS = [
   { title: 'Project Memory Engine', tag: 'We remember WHY', body: 'Every architectural decision, tagged by stage and layer, searchable by meaning -- not just by keyword.' },
@@ -21,9 +22,10 @@ const LOOP_STEPS = [
 ]
 
 function NavBar() {
+  const { session } = useAuth()
   return (
     <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-      <span className="text-lg font-semibold text-ink">Kavacha</span>
+      <span className="gradient-text text-lg font-bold">Kavacha</span>
       <div className="flex items-center gap-4 text-sm">
         <Link to="/demo" className="text-ink-dim hover:text-ink">
           Live Demo
@@ -37,10 +39,10 @@ function NavBar() {
           Docs
         </a>
         <Link
-          to="/login"
+          to={session ? '/dashboard' : '/login'}
           className="rounded-md border border-edge px-3 py-1.5 text-ink hover:border-saffron hover:text-saffron-bright"
         >
-          Sign in
+          {session ? 'Go to Dashboard' : 'Sign in'}
         </Link>
       </div>
     </header>
@@ -65,7 +67,7 @@ function Hero() {
           transition={{ duration: 0.5 }}
           className="text-4xl font-bold tracking-tight text-ink sm:text-5xl"
         >
-          Every AI product deserves a permanent engineer that never sleeps
+          Every AI product deserves a <span className="gradient-text">permanent engineer that never sleeps</span>
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 12 }}
@@ -84,7 +86,7 @@ function Hero() {
         >
           <Link
             to="/demo"
-            className="rounded-md bg-saffron px-5 py-2.5 text-sm font-semibold text-surface shadow-[0_0_24px_-4px_var(--saffron-glow)] hover:bg-saffron-bright"
+            className="gradient-bg rounded-md px-5 py-2.5 text-sm font-semibold text-surface shadow-[0_0_24px_-4px_var(--saffron-glow)]"
           >
             See Live Demo
           </Link>
@@ -153,7 +155,7 @@ function DifferentiatorsSection() {
           <motion.div
             key={d.title}
             whileHover={{ y: -2 }}
-            className="rounded-xl border border-edge bg-card p-5 transition-shadow hover:shadow-[0_0_24px_-4px_var(--saffron-glow)]"
+            className="gradient-border rounded-xl border border-edge bg-card p-5"
           >
             <p className="text-xs font-medium uppercase tracking-wide text-saffron-bright">{d.tag}</p>
             <h3 className="mt-2 font-semibold text-ink">{d.title}</h3>

@@ -13,9 +13,9 @@ export function BentoCard({
   return (
     <motion.div
       onClick={onClick}
-      whileHover={{ y: -2, boxShadow: '0 0 24px -4px var(--saffron-glow)' }}
+      whileHover={{ y: -2 }}
       transition={{ duration: 0.2 }}
-      className={`rounded-xl border border-edge bg-card p-5 ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      className={`gradient-border rounded-xl border border-edge bg-card p-5 ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       {children}
     </motion.div>

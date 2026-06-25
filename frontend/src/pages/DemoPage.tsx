@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { BentoCard } from '../components/ui/BentoCard'
 import { HealthBadge } from '../components/HealthBadge'
 import { Spinner } from '../components/Spinner'
+import { useAuth } from '../context/AuthContext'
 import type { DemoData } from '../lib/types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
@@ -28,6 +29,7 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
 }
 
 export function DemoPage() {
+  const { session } = useAuth()
   const [data, setData] = useState<DemoData | null>(null)
   const [error, setError] = useState(false)
 
@@ -41,22 +43,25 @@ export function DemoPage() {
       .catch(() => setError(true))
   }, [])
 
+  const ctaTo = session ? '/dashboard' : '/login'
+  const ctaLabel = session ? 'Go to Dashboard' : 'Sign in'
+
   return (
     <div className="min-h-screen bg-surface">
       <div className="sticky top-0 z-10 border-b border-saffron/30 bg-saffron px-6 py-2 text-center text-sm font-medium text-surface">
         DEMO MODE -- fake but realistic data, read-only, nothing here can be changed.{' '}
-        <Link to="/login" className="underline">
-          Sign in to monitor a real project
+        <Link to={ctaTo} className="underline">
+          {session ? 'Go to your dashboard' : 'Sign in to monitor a real project'}
         </Link>
       </div>
 
       <header className="border-b border-edge bg-surface-2">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link to="/" className="text-lg font-semibold text-ink">
+          <Link to="/" className="gradient-text text-lg font-bold">
             Kavacha
           </Link>
-          <Link to="/login" className="rounded-md border border-edge px-3 py-1.5 text-sm text-ink hover:border-saffron-bright">
-            Sign in
+          <Link to={ctaTo} className="rounded-md border border-edge px-3 py-1.5 text-sm text-ink hover:border-saffron-bright">
+            {ctaLabel}
           </Link>
         </div>
       </header>

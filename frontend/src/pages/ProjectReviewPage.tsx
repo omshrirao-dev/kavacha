@@ -124,7 +124,7 @@ export function ProjectReviewPage() {
         type="button"
         onClick={handleRun}
         disabled={running}
-        className="mb-6 rounded-md bg-saffron px-4 py-2 text-sm font-medium text-surface hover:bg-saffron-bright disabled:opacity-50"
+        className="mb-6 rounded-md gradient-bg px-4 py-2 text-sm font-medium text-surface disabled:opacity-50"
       >
         {running ? 'Reviewing as CEO...' : 'Run CEO Review'}
       </button>
