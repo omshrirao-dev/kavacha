@@ -1,7 +1,7 @@
 export function Spinner({ label }: { label?: string }) {
   return (
-    <div className="flex items-center gap-2 text-sm text-gray-500">
-      <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+    <div className="flex items-center gap-2 text-sm text-ink-dim">
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-saffron" />
       {label && <span>{label}</span>}
     </div>
   )

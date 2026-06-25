@@ -24,11 +24,11 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
 
   return (
     <div className="mb-4">
-      <Link to="/" className="text-sm text-gray-500 hover:text-gray-700">
+      <Link to="/dashboard" className="text-sm text-ink-faint hover:text-ink-dim">
         &larr; Back to projects
       </Link>
       <div className="mt-1 flex items-center gap-3">
-        <h1 className="text-xl font-semibold text-gray-900">{project?.name ?? '...'}</h1>
+        <h1 className="text-xl font-semibold text-ink">{project?.name ?? '...'}</h1>
         {project && <HealthBadge status={project.health} />}
       </div>
     </div>

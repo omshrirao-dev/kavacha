@@ -4,37 +4,83 @@ import { ErrorBanner } from '../components/ErrorBanner'
 import { ProjectHeader } from '../components/ProjectHeader'
 import { ProjectTabs } from '../components/ProjectTabs'
 import { Spinner } from '../components/Spinner'
+import { BentoCard } from '../components/ui/BentoCard'
+import { PulseDot } from '../components/ui/PulseDot'
 import { ApiError, apiFetch } from '../lib/api'
-import type { ComplianceReport, CostIntelligence, FixPattern, MonitorStatus } from '../lib/types'
+import type { ComplianceReport, CostIntelligence, FixPattern, MonitorJobStatus, MonitorStatus } from '../lib/types'
+
+const TRACK_LABELS = {
+  track_a: 'Track A -- Hallucination',
+  track_b: 'Track B -- Cost',
+  track_c: 'Track C -- Drift',
+} as const
+
+function useCountdown(target: string | null): string | null {
+  const [label, setLabel] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!target) return
+    const targetTime = new Date(target).getTime()
+    function tick() {
+      const ms = targetTime - Date.now()
+      if (ms <= 0) {
+        setLabel('due now')
+        return
+      }
+      const mins = Math.floor(ms / 60000)
+      const hrs = Math.floor(mins / 60)
+      setLabel(hrs > 0 ? `in ${hrs}h ${mins % 60}m` : `in ${mins}m`)
+    }
+    tick()
+    const id = setInterval(tick, 15000)
+    return () => clearInterval(id)
+  }, [target])
+
+  return target ? label : null
+}
+
+function TrackCard({ track, status }: { track: keyof typeof TRACK_LABELS; status: MonitorJobStatus }) {
+  const countdown = useCountdown(status.next_run)
+  return (
+    <BentoCard>
+      <div className="flex items-center gap-2">
+        <PulseDot color={status.running ? 'saffron' : 'idle'} live={status.running} />
+        <span className="text-sm font-medium text-ink">{TRACK_LABELS[track]}</span>
+      </div>
+      <p className="mt-2 text-xs text-ink-dim">{status.running ? 'Scheduled' : 'Not scheduled'}</p>
+      {countdown && <p className="mt-1 font-mono text-xs text-ink-faint">Next check {countdown}</p>}
+    </BentoCard>
+  )
+}
 
 function CostWidget({ cost }: { cost: CostIntelligence }) {
   if (cost.budget_usd === null) {
-    return <p className="text-sm text-gray-500">No approved budget recorded for this project yet (run the Architect Agent to set one).</p>
+    return <p className="text-sm text-ink-faint">No approved budget recorded for this project yet (run the Architect Agent to set one).</p>
   }
   return (
-    <div className={`rounded-lg border p-4 ${cost.over_budget ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'}`}>
-      <div className="grid grid-cols-3 gap-4 text-sm">
+    <BentoCard className={cost.over_budget ? 'border-bad/40' : ''}>
+      <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
         <div>
-          <div className="text-gray-500">Approved budget</div>
-          <div className="text-lg font-semibold text-gray-900">${cost.budget_usd.toFixed(2)}/mo</div>
+          <div className="text-ink-faint">Approved budget</div>
+          <div className="font-mono text-lg font-semibold text-ink">${cost.budget_usd.toFixed(2)}/mo</div>
         </div>
         <div>
-          <div className="text-gray-500">Spent so far</div>
-          <div className="text-lg font-semibold text-gray-900">${cost.total_cost_usd.toFixed(4)}</div>
+          <div className="text-ink-faint">Spent so far</div>
+          <div className="font-mono text-lg font-semibold text-ink">${cost.total_cost_usd.toFixed(4)}</div>
         </div>
         <div>
-          <div className="text-gray-500">Projected monthly</div>
-          <div className={`text-lg font-semibold ${cost.over_budget ? 'text-red-700' : 'text-gray-900'}`}>
+          <div className="text-ink-faint">Projected monthly</div>
+          <div className={`font-mono text-lg font-semibold ${cost.over_budget ? 'text-bad' : 'text-ink'}`}>
             ${cost.projected_monthly_usd.toFixed(2)}/mo
           </div>
         </div>
       </div>
       {cost.over_budget && (
-        <p className="mt-3 text-sm text-red-700">
+        <p className="mt-3 text-sm text-bad">
           Projected cost exceeds the approved budget by more than 20% (based on {cost.days_elapsed.toFixed(2)} days of usage).
         </p>
       )}
-    </div>
+    </BentoCard>
   )
 }
 
@@ -46,11 +92,15 @@ export function ProjectMonitorPage() {
   const [running, setRunning] = useState(false)
   const [report, setReport] = useState<ComplianceReport | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [lastChecked, setLastChecked] = useState<Date | null>(null)
 
   function loadStatus() {
     if (!projectId) return
     apiFetch<{ jobs: MonitorStatus }>(`/api/v1/monitor/status?project_id=${projectId}`)
-      .then((r) => setMonitorStatus(r.jobs))
+      .then((r) => {
+        setMonitorStatus(r.jobs)
+        setLastChecked(new Date())
+      })
       .catch((err: ApiError) => setError(err.message))
     apiFetch<CostIntelligence>(`/api/v1/monitor/cost?project_id=${projectId}`)
       .then(setCost)
@@ -119,7 +169,7 @@ export function ProjectMonitorPage() {
     <div>
       <ProjectHeader projectId={projectId} />
       <ProjectTabs projectId={projectId} />
-      <p className="mb-6 text-sm text-gray-500">The permanent AI engineer that never sleeps.</p>
+      <p className="mb-6 text-sm text-ink-dim">The Watchtower -- the permanent AI engineer that never sleeps.</p>
 
       {error && <ErrorBanner message={error} />}
 
@@ -128,7 +178,7 @@ export function ProjectMonitorPage() {
           type="button"
           onClick={() => handleStartStop('start')}
           disabled={running}
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+          className="rounded-md bg-saffron px-4 py-2 text-sm font-medium text-surface hover:bg-saffron-bright disabled:opacity-50"
         >
           Start Monitoring
         </button>
@@ -136,7 +186,7 @@ export function ProjectMonitorPage() {
           type="button"
           onClick={() => handleStartStop('stop')}
           disabled={running}
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="rounded-md border border-edge px-4 py-2 text-sm text-ink-dim hover:border-saffron-bright disabled:opacity-50"
         >
           Stop Monitoring
         </button>
@@ -144,64 +194,57 @@ export function ProjectMonitorPage() {
           type="button"
           onClick={handleManualTest}
           disabled={running}
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="rounded-md border border-edge px-4 py-2 text-sm text-ink-dim hover:border-saffron-bright disabled:opacity-50"
         >
           {running ? 'Running...' : 'Run Manual Check (all tracks)'}
         </button>
         <button
           type="button"
           onClick={handleComplianceReport}
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 sm:ml-auto"
+          className="rounded-md border border-edge px-4 py-2 text-sm text-ink-dim hover:border-saffron-bright sm:ml-auto"
         >
           Download Compliance Report
         </button>
       </div>
 
       <div className="mb-6 flex items-center gap-2">
-        <span className={`h-2.5 w-2.5 rounded-full ${anyRunning ? 'bg-green-500' : 'bg-gray-300'}`} />
-        <span className="text-sm text-gray-600">{anyRunning ? 'Monitoring active' : 'Monitoring stopped'}</span>
+        <PulseDot color={anyRunning ? 'ok' : 'idle'} live={!!anyRunning} />
+        <span className="text-sm text-ink-dim">{anyRunning ? 'Monitoring active' : 'Monitoring stopped'}</span>
+        {lastChecked && <span className="text-xs text-ink-faint">&middot; last checked {lastChecked.toLocaleTimeString()}</span>}
       </div>
 
       {monitorStatus && (
-        <div className="mb-6 grid grid-cols-3 gap-3 text-sm">
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {(['track_a', 'track_b', 'track_c'] as const).map((track) => (
-            <div key={track} className="rounded-lg border border-gray-200 bg-white p-3">
-              <div className="font-medium text-gray-700">
-                {track === 'track_a' ? 'Track A -- Hallucination' : track === 'track_b' ? 'Track B -- Cost' : 'Track C -- Drift'}
-              </div>
-              <div className="text-gray-500">{monitorStatus[track].running ? 'Scheduled' : 'Not scheduled'}</div>
-              {monitorStatus[track].next_run && (
-                <div className="text-xs text-gray-400">Next: {new Date(monitorStatus[track].next_run!).toLocaleString()}</div>
-              )}
-            </div>
+            <TrackCard key={track} track={track} status={monitorStatus[track]} />
           ))}
         </div>
       )}
 
-      <h2 className="mb-3 text-sm font-semibold text-gray-700">Cost Intelligence</h2>
+      <h2 className="mb-3 text-sm font-semibold text-ink-dim">Cost Intelligence</h2>
       {cost ? <CostWidget cost={cost} /> : <Spinner label="Loading cost data..." />}
 
-      <h2 className="mb-3 mt-6 text-sm font-semibold text-gray-700">Cross-Project Patterns</h2>
+      <h2 className="mb-3 mt-6 text-sm font-semibold text-ink-dim">Cross-Project Patterns</h2>
       {patterns === null ? (
         <Spinner label="Loading patterns..." />
       ) : patterns.length === 0 ? (
-        <p className="text-gray-500">No fix patterns learned yet across any project.</p>
+        <p className="text-ink-faint">No fix patterns learned yet across any project.</p>
       ) : (
         <div className="space-y-2">
           {patterns.map((p) => (
-            <div key={p.issue_type} className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
-              <p className="font-medium text-gray-800">
+            <BentoCard key={p.issue_type}>
+              <p className="text-sm font-medium text-ink">
                 Kavacha has seen "{p.issue_type}" in {p.project_count} project{p.project_count === 1 ? '' : 's'} -- here's the fix
               </p>
-              <p className="mt-1 text-gray-600">{p.fix_template}</p>
-              <p className="mt-1 text-xs text-gray-400">{(p.success_rate * 100).toFixed(0)}% success rate</p>
-            </div>
+              <p className="mt-1 text-sm text-ink-dim">{p.fix_template}</p>
+              <p className="mt-1 text-xs text-ink-faint">{(p.success_rate * 100).toFixed(0)}% success rate</p>
+            </BentoCard>
           ))}
         </div>
       )}
 
       {report && (
-        <p className="mt-4 text-xs text-gray-400">Compliance report generated and downloaded (snapshot {report.snapshot_id}).</p>
+        <p className="mt-4 text-xs text-ink-faint">Compliance report generated and downloaded (snapshot {report.snapshot_id}).</p>
       )}
     </div>
   )

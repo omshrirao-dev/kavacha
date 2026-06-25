@@ -93,3 +93,25 @@ export interface ComplianceReport {
   disclaimer: string
   snapshot_id: string
 }
+
+export interface DashboardSummary {
+  projects_monitored: number
+  issues_today: number
+  fixes_applied: number
+  fix_success_rate: number | null
+  patterns_learned: number
+  cost_overruns_caught: number
+  cost_overrun_inr_caught: number
+  compliance_reports_ready: number
+}
+
+export interface DemoData {
+  project: Project
+  memory: MemoryEntry[]
+  issues: Issue[]
+  ceo_review: CEOReviewResult
+  monitor_status: MonitorStatus
+  cost_intelligence: CostIntelligence
+  fix_patterns: FixPattern[]
+  compliance_report: ComplianceReport
+}

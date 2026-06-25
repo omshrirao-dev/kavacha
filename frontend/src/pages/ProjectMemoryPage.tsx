@@ -4,25 +4,26 @@ import { ErrorBanner } from '../components/ErrorBanner'
 import { ProjectHeader } from '../components/ProjectHeader'
 import { ProjectTabs } from '../components/ProjectTabs'
 import { Spinner } from '../components/Spinner'
+import { BentoCard } from '../components/ui/BentoCard'
 import { ApiError, apiFetch } from '../lib/api'
 import type { MemoryEntry, MemorySearchResult } from '../lib/types'
 
 function MemoryCard({ entry }: { entry: MemoryEntry | MemorySearchResult }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <div className="mb-2 flex items-center gap-2 text-xs text-gray-500">
-        <span className="rounded bg-gray-100 px-2 py-0.5 font-medium">{entry.stage}</span>
-        {entry.layer && <span className="rounded bg-gray-100 px-2 py-0.5">{entry.layer}</span>}
-        {entry.impact_level && <span className="rounded bg-gray-100 px-2 py-0.5">{entry.impact_level} impact</span>}
+    <BentoCard>
+      <div className="mb-2 flex items-center gap-2 text-xs text-ink-faint">
+        <span className="rounded bg-surface-2 px-2 py-0.5 font-medium text-ink-dim">{entry.stage}</span>
+        {entry.layer && <span className="rounded bg-surface-2 px-2 py-0.5 text-ink-dim">{entry.layer}</span>}
+        {entry.impact_level && <span className="rounded bg-surface-2 px-2 py-0.5 text-ink-dim">{entry.impact_level} impact</span>}
         {'similarity_score' in entry && (
-          <span className="rounded bg-blue-50 px-2 py-0.5 text-blue-700">
+          <span className="rounded bg-saffron/10 px-2 py-0.5 text-saffron-bright">
             {(entry.similarity_score * 100).toFixed(0)}% match
           </span>
         )}
         <span className="ml-auto">{new Date(entry.timestamp).toLocaleString()}</span>
       </div>
-      <p className="whitespace-pre-wrap text-sm text-gray-800">{entry.content}</p>
-    </div>
+      <p className="whitespace-pre-wrap text-sm text-ink">{entry.content}</p>
+    </BentoCard>
   )
 }
 
@@ -58,13 +59,13 @@ export function ProjectMemoryPage() {
     }
   }
 
-  if (!projectId) return null;
+  if (!projectId) return null
 
   return (
     <div>
       <ProjectHeader projectId={projectId} />
       <ProjectTabs projectId={projectId} />
-      <p className="mb-6 text-sm text-gray-500">Every architectural decision, and why it was made.</p>
+      <p className="mb-6 text-sm text-ink-dim">The Brain -- every architectural decision, and why it was made.</p>
 
       <form onSubmit={handleSearch} className="mb-6 flex gap-2">
         <input
@@ -72,12 +73,12 @@ export function ProjectMemoryPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Ask why a decision was made, e.g. 'why this database'"
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+          className="flex-1 rounded-md border border-edge bg-card px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron/40"
         />
         <button
           type="submit"
           disabled={searching}
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+          className="rounded-md bg-saffron px-4 py-2 text-sm font-medium text-surface hover:bg-saffron-bright disabled:opacity-50"
         >
           {searching ? 'Searching...' : 'Search'}
         </button>
@@ -85,7 +86,7 @@ export function ProjectMemoryPage() {
           <button
             type="button"
             onClick={() => setSearchResults(null)}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            className="rounded-md border border-edge px-4 py-2 text-sm text-ink-dim hover:border-saffron-bright"
           >
             Clear
           </button>
@@ -97,14 +98,14 @@ export function ProjectMemoryPage() {
       <div className="space-y-3">
         {searchResults ? (
           searchResults.length === 0 ? (
-            <p className="text-gray-500">No matching decisions found.</p>
+            <p className="text-ink-faint">No matching decisions found.</p>
           ) : (
             searchResults.map((r) => <MemoryCard key={r.id} entry={r} />)
           )
         ) : entries === null ? (
           <Spinner label="Loading memory..." />
         ) : entries.length === 0 ? (
-          <p className="text-gray-500">No decisions recorded for this project yet.</p>
+          <p className="text-ink-faint">No decisions recorded for this project yet.</p>
         ) : (
           entries.map((e) => <MemoryCard key={e.id} entry={e} />)
         )}

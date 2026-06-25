@@ -1,1 +1,104 @@
 @import "tailwindcss";
+
+/* Self-hosted, not Google Fonts CDN -- the CSP is locked to 'self' for
+   style-src/font-src and that's worth keeping strict rather than carving
+   out an exception for an external font host. */
+@import "@fontsource/inter/latin-400.css";
+@import "@fontsource/inter/latin-500.css";
+@import "@fontsource/inter/latin-600.css";
+@import "@fontsource/inter/latin-700.css";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-500.css";
+
+/* Tailwind v4's @theme namespace dictates the generated utility names
+   (--color-X -> bg-X/text-X/border-X), which is why these don't match the
+   literal --bg-primary-style names below 1:1 -- this block is what utility
+   classes are built from. The :root block underneath carries the exact
+   variable names for raw CSS (gradients, SVG strokes, custom shadows) that
+   isn't expressible as a Tailwind utility. Both point at the same hex
+   values; change a color in one place, update the other to match. */
+@theme {
+  --color-surface: #0f0d0a;
+  --color-surface-2: #1a1611;
+  --color-card: #211b14;
+  --color-edge: #2e2820;
+
+  --color-saffron: #ff8c1a;
+  --color-saffron-bright: #ffa94d;
+  --color-saffron-deep: #e8740f;
+
+  --color-ok: #4ade80;
+  --color-warn: #facc15;
+  --color-bad: #f87171;
+
+  --color-ink: #f5f0e8;
+  --color-ink-dim: #a89f90;
+  --color-ink-faint: #6b6358;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  --bg-primary: #0f0d0a;
+  --bg-secondary: #1a1611;
+  --bg-card: #211b14;
+  --border: #2e2820;
+  --saffron-primary: #ff8c1a;
+  --saffron-bright: #ffa94d;
+  --saffron-deep: #e8740f;
+  --saffron-glow: rgba(255, 140, 26, 0.15);
+  --health-green: #4ade80;
+  --health-yellow: #facc15;
+  --health-red: #f87171;
+  --text-primary: #f5f0e8;
+  --text-secondary: #a89f90;
+  --text-muted: #6b6358;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+@keyframes saffron-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 var(--saffron-glow);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 0 6px var(--saffron-glow);
+  }
+}
+
+.animate-saffron-pulse {
+  animation: saffron-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes gradient-mesh {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-mesh {
+  background-size: 200% 200%;
+  animation: gradient-mesh 18s ease-in-out infinite;
+}
+
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.animate-flow {
+  stroke-dasharray: 6 6;
+  animation: flow-dash 1s linear infinite;
+}

@@ -1,9 +1,9 @@
 import type { HealthStatus } from '../lib/types'
 
 const STYLES: Record<HealthStatus, string> = {
-  green: 'bg-green-100 text-green-800 border-green-300',
-  yellow: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  red: 'bg-red-100 text-red-800 border-red-300',
+  green: 'bg-ok/10 text-ok border-ok/30',
+  yellow: 'bg-warn/10 text-warn border-warn/30',
+  red: 'bg-bad/10 text-bad border-bad/30',
 }
 
 const LABELS: Record<HealthStatus, string> = {

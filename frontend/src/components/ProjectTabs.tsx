@@ -11,7 +11,7 @@ export function ProjectTabs({ projectId }: { projectId: string }) {
   ]
 
   return (
-    <div className="mb-6 flex gap-1 border-b border-gray-200">
+    <div className="mb-6 flex gap-1 border-b border-edge">
       {tabs.map((tab) => {
         const active = pathname === tab.to
         return (
@@ -19,7 +19,7 @@ export function ProjectTabs({ projectId }: { projectId: string }) {
             key={tab.to}
             to={tab.to}
             className={`px-4 py-2 text-sm font-medium ${
-              active ? 'border-b-2 border-gray-900 text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              active ? 'border-b-2 border-saffron text-ink' : 'text-ink-faint hover:text-ink-dim'
             }`}
           >
             {tab.label}

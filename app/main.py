@@ -9,7 +9,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
-from app.api.v1 import architect, auth, ceo_review, compliance, fix_patterns, issues, memory, monitor, projects, sdk  # noqa: E402
+from app.api.v1 import architect, auth, ceo_review, compliance, dashboard, demo, fix_patterns, issues, memory, monitor, projects, sdk  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.core.limiter import limiter  # noqa: E402
 from app.core.middleware import SupabaseAuthMiddleware  # noqa: E402
@@ -67,6 +67,8 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware, csp=None if IS_DEV else "default-src 'none'; frame-ancestors 'none'")
 
 app.include_router(auth.router)
+app.include_router(demo.router)
+app.include_router(dashboard.router)
 app.include_router(projects.router)
 app.include_router(architect.router)
 app.include_router(memory.router)

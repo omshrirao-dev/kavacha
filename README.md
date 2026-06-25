@@ -14,6 +14,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](kavacha-sdk/pyproject.toml)
 
 **Live dashboard:** https://kavacha-rho.vercel.app
+**Live demo (no signup needed):** https://kavacha-rho.vercel.app/demo
 **Live API:** https://kavacha-backend-production.up.railway.app ([health check](https://kavacha-backend-production.up.railway.app/health))
 
 ---
@@ -97,14 +98,16 @@ Every rule is backed by a file reference and, where relevant, a real bug found a
 
 | | |
 |---|---|
-| ![Login](docs/screenshots/01-login.png) | ![Project list](docs/screenshots/02-project-list.png) |
-| Sign in (Supabase auth, JWT held in memory only) | Every registered AI product, with computed health |
-| ![Memory](docs/screenshots/03-memory.png) | ![Issues](docs/screenshots/04-issues.png) |
-| Every architectural decision, searchable by meaning | Real detected issue: cost overrun, with root cause |
-| ![CEO Review](docs/screenshots/05-ceo-review.png) | ![Monitor](docs/screenshots/06-monitor.png) |
-| The AI switches roles to demanding client and finds real gaps | Live cost tracking + cross-project pattern matches |
+| ![Landing](docs/screenshots/01-landing.png) | ![Demo mode](docs/screenshots/02-demo.png) |
+| Public landing page — the 7-stage pipeline, clickable | `/demo` — explore a full fake project, no signup, read-only |
+| ![Login](docs/screenshots/03-login.png) | ![Dashboard](docs/screenshots/04-dashboard.png) |
+| Sign in (Supabase auth, JWT held in memory only) | Real aggregate metrics across every monitored project |
+| ![Memory](docs/screenshots/05-memory.png) | ![Issues](docs/screenshots/06-issues.png) |
+| Every architectural decision, searchable by meaning | A real cost-overrun issue, with the Fix Engine's 5-step reasoning replayed |
+| ![CEO Review](docs/screenshots/07-ceo-review.png) | ![Monitor](docs/screenshots/08-monitor.png) |
+| The AI switches roles to demanding client and finds real gaps | Live tracks, cost intelligence, cross-project pattern matches |
 
-All screenshots are of the actual deployed app at the URLs above, not mockups.
+All screenshots are of the actual deployed app at the URLs above, not mockups. Try the live demo yourself: **https://kavacha-rho.vercel.app/demo**
 
 ## Quick start (SDK)
 

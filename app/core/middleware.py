@@ -10,11 +10,13 @@ from app.core.security import InvalidTokenError, verify_supabase_jwt
 
 PROTECTED_PREFIX = "/api/v1"
 SDK_PREFIX = "/api/v1/sdk"
-# The one endpoint that must be reachable with no credential at all -- it's
-# how a credential gets issued in the first place. Its own rate limiting and
-# lockout logic (app/core/login_security.py) is what defends it, not this
-# middleware.
-PUBLIC_PATHS = {"/api/v1/auth/login"}
+# /auth/login: must be reachable with no credential at all -- it's how a
+# credential gets issued in the first place. Its own rate limiting and
+# lockout logic (app/core/login_security.py) is what defends it.
+# /demo: intentionally public -- static, hardcoded fixture data, no database
+# query at all (app/api/v1/demo.py), so there's nothing here for auth to
+# protect. Rate limited the same as everything else.
+PUBLIC_PATHS = {"/api/v1/auth/login", "/api/v1/demo"}
 GENERIC_AUTH_ERROR = {"detail": "Invalid or expired token"}
 
 logger = logging.getLogger("kavacha.auth")

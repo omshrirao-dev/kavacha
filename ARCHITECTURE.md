@@ -108,6 +108,14 @@ The dashboard (human, browser session) and the SDK (machine, long-lived bearer c
 
 See [`app/core/middleware.py`](app/core/middleware.py).
 
+## Public surface: landing page and demo mode
+
+`/` and `/demo` are deliberately reachable with no credential at all -- a third category alongside the JWT/API-key audiences above, exempted in `PUBLIC_PATHS`:
+
+- **`/`** renders the marketing landing page (7-stage pipeline visual, differentiators) for an anonymous visitor, or redirects straight to `/dashboard` if a session already exists -- decided client-side in [`HomeRoute.tsx`](frontend/src/components/HomeRoute.tsx) rather than as two separate routes, to avoid a flash of the wrong page while session state resolves.
+- **`/demo`** renders a full walkthrough of a fake project ("ShopGenie") using every real dashboard section (memory, issues, CEO review, cost intelligence, cross-project patterns, compliance report). The data comes from `GET /api/v1/demo`, which is a hardcoded Python dict with no database query at all -- deliberate, so there is no write path to abuse and no real LLM cost from anonymous traffic. Clearly labeled DEMO MODE in the UI; nothing on the page can mutate anything.
+- **`GET /api/v1/dashboard/summary`** (authenticated) aggregates real counts across every project an owner has: issues caught today, fixes applied with success rate, cross-project patterns learned (global, not owner-scoped), and cost overruns caught. The "₹ saved" figure is parsed back out of `run_track_b()`'s own description text using a regex tied to that exact format string -- safe specifically because this app controls and wrote that string itself, unlike parsing arbitrary LLM or user text.
+
 ## Deployment topology
 
 - **Backend**: single Docker container on Railway, single replica, single uvicorn worker. Deliberate: APScheduler's `BackgroundScheduler` keeps monitor jobs in that one process's memory — more workers or replicas would each run their own copy of every job, duplicating issues and notifications.
@@ -122,6 +130,9 @@ All routes below are under the live backend's base URL. Dashboard routes require
 
 | Method | Path | Purpose |
 |---|---|---|
+| POST | `/api/v1/auth/login` | Email/password login with account lockout (see [SECURITY.md](SECURITY.md)) |
+| GET | `/api/v1/demo` | Static fixture data for the public `/demo` page -- no auth, no database query |
+| GET | `/api/v1/dashboard/summary` | Aggregate metrics across every project the caller owns |
 | POST | `/api/v1/architect/run` | Run the Architect Agent (Stage 2) on a new idea |
 | GET | `/api/v1/projects` | List projects owned by the caller |
 | GET | `/api/v1/projects/{id}` | Single project, with computed health |
