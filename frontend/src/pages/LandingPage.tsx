@@ -30,14 +30,9 @@ function NavBar() {
         <Link to="/demo" className="text-ink-dim hover:text-ink">
           Live Demo
         </Link>
-        <a
-          href="https://github.com/omshrirao-dev/kavacha"
-          target="_blank"
-          rel="noreferrer"
-          className="text-ink-dim hover:text-ink"
-        >
-          Docs
-        </a>
+        <Link to="/overview" className="text-ink-dim hover:text-ink">
+          Overview
+        </Link>
         <Link
           to={session ? '/dashboard' : '/login'}
           className="rounded-md border border-edge px-3 py-1.5 text-ink hover:border-saffron hover:text-saffron-bright"
@@ -90,14 +85,12 @@ function Hero() {
           >
             See Live Demo
           </Link>
-          <a
-            href="https://github.com/omshrirao-dev/kavacha/blob/master/README.md"
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            to="/overview"
             className="rounded-md border border-edge px-5 py-2.5 text-sm font-semibold text-ink hover:border-saffron-bright"
           >
-            Read the Docs
-          </a>
+            Learn More
+          </Link>
         </motion.div>
       </div>
     </div>
@@ -182,9 +175,9 @@ export function LandingPage() {
           <Link to="/terms" className="hover:text-ink-dim">
             Terms of Service
           </Link>
-          <a href="https://github.com/omshrirao-dev/kavacha" target="_blank" rel="noreferrer" className="hover:text-ink-dim">
-            GitHub
-          </a>
+          <Link to="/overview" className="hover:text-ink-dim">
+            Overview
+          </Link>
         </div>
       </footer>
     </div>

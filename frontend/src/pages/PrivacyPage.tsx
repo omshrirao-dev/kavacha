@@ -27,16 +27,7 @@ export function PrivacyPage() {
             <p>
               In Postgres (hosted by Supabase) and ChromaDB (semantic memory, on a persistent volume), reached only over
               encrypted connections. Secrets and credential-shaped content are stripped before anything is stored or
-              sent to an LLM. See{' '}
-              <a
-                href="https://github.com/omshrirao-dev/kavacha/blob/master/SECURITY.md"
-                className="text-saffron-bright underline"
-                target="_blank"
-                rel="noreferrer"
-              >
-                SECURITY.md
-              </a>{' '}
-              for the full implementation.
+              sent to an LLM.
             </p>
           </section>
 
@@ -73,8 +64,8 @@ export function PrivacyPage() {
             <p>
               We process personal data only for the purpose you provided it (operating your Kavacha account and
               monitoring the AI product you registered), retain it only as long as your account is active, and apply
-              reasonable security safeguards as described in SECURITY.md. You may request access to, correction of, or
-              erasure of your personal data at any time.
+              reasonable security safeguards. You may request access to, correction of, or erasure of your personal
+              data at any time.
             </p>
           </section>
 

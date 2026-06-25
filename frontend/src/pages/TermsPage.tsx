@@ -17,16 +17,11 @@ export function TermsPage() {
               Kavacha is autonomous AI maintenance infrastructure: it remembers the architectural decisions behind your
               AI product, monitors it for hallucination, cost overruns, and behavior drift, and helps diagnose and
               describe a fix when something goes wrong. This is V1 -- a working proof of concept, not a mature
-              enterprise platform. See{' '}
-              <a
-                href="https://github.com/omshrirao-dev/kavacha/blob/master/ARCHITECTURE.md"
-                className="text-saffron-bright underline"
-                target="_blank"
-                rel="noreferrer"
-              >
-                ARCHITECTURE.md
-              </a>{' '}
-              for exactly what's built today versus planned.
+              enterprise platform. See our{' '}
+              <Link to="/overview" className="text-saffron-bright underline">
+                Overview
+              </Link>{' '}
+              page for what Kavacha does and why.
             </p>
           </section>
 
@@ -45,7 +40,7 @@ export function TermsPage() {
             <p>
               This is a V1 release. We do not guarantee any specific uptime, response time, or availability for the
               Kavacha dashboard, API, or monitoring jobs. We take reliability seriously and document known limitations
-              honestly (see ARCHITECTURE.md), but there is no SLA at this stage.
+              honestly, but there is no SLA at this stage.
             </p>
           </section>
 

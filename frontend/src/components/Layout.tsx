@@ -39,6 +39,9 @@ export function Layout() {
           <Link to="/terms" className="hover:text-ink-dim">
             Terms of Service
           </Link>
+          <Link to="/overview" className="hover:text-ink-dim">
+            Overview
+          </Link>
         </div>
       </footer>
     </div>

@@ -5,6 +5,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { DashboardHomePage } from './pages/DashboardHomePage'
 import { DemoPage } from './pages/DemoPage'
 import { LoginPage } from './pages/LoginPage'
+import { OverviewPage } from './pages/OverviewPage'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { ProjectIssuesPage } from './pages/ProjectIssuesPage'
 import { ProjectMemoryPage } from './pages/ProjectMemoryPage'
@@ -17,6 +18,7 @@ function App() {
     <Routes>
       <Route path="/" element={<HomeRoute />} />
       <Route path="/demo" element={<DemoPage />} />
+      <Route path="/overview" element={<OverviewPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />
