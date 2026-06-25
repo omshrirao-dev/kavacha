@@ -5,6 +5,7 @@ venv/
 .venv/
 e2e_test_venv/
 chroma_data/
+prompts/
 __pycache__/
 *.pyc
 .git/

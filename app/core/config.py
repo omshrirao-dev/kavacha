@@ -29,6 +29,11 @@ class Settings(BaseSettings):
 
     chroma_persist_dir: str = "./chroma_data"
 
+    # Where agent system prompts live -- never this repo's source tree. See
+    # app/core/prompts.py. Same local-path-vs-Railway-volume-path pattern as
+    # chroma_persist_dir above.
+    prompt_dir: str = "./prompts"
+
     # No SendGrid account exists yet -- "log" always works (writes the plain-
     # language notification to the server log + audit trail) and is the safe
     # default. Set to "sendgrid" once SENDGRID_API_KEY is actually configured.

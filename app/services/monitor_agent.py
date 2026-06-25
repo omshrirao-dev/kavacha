@@ -9,6 +9,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.core.llm_provider import get_llm_response
 from app.core.llm_usage import record_llm_usage
 from app.core.notifier import format_issue_notification, resolve_owner_email, send_notification
+from app.core.prompts import load_prompt
 from app.db.database import get_connection
 from app.memory.engine import search_memory
 from app.memory.sanitize import sanitize_content
@@ -44,17 +45,8 @@ def _get_owner_id(project_id: str) -> str:
 # external call later is a one-function change, not a rebuild.
 # ---------------------------------------------------------------------------
 
-HALLUCINATION_SYSTEM_PROMPT = """You are simulating how an AI product currently responds \
-to a test query, then judging that response for hallucination or contradiction.
-
-First, using the project's recorded context, simulate the response the product would \
-currently give to the test query. Then judge: does that response contradict or diverge \
-from the expected/approved behavior?
-
-verdict must be exactly one of: pass, warning, critical.
-- pass: response is consistent with expected behavior.
-- warning: response partially diverges but isn't a clear contradiction.
-- critical: response directly contradicts expected behavior or fabricates information."""
+# Full text lives outside this repo -- see app/core/prompts.py and LICENSE.
+HALLUCINATION_SYSTEM_PROMPT = load_prompt("monitor_track_a")
 
 _JSON_INSTRUCTIONS = """
 

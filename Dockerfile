@@ -20,6 +20,24 @@ COPY app/ ./app/
 ENV CHROMA_PERSIST_DIR=/data/chroma_data
 RUN mkdir -p /data/chroma_data
 
+# Agent system prompts (see app/core/prompts.py, LICENSE) are never part of
+# this image -- gitignored locally, and this directory isn't in the COPY
+# above either. In production they live on the same Railway Volume,
+# uploaded once via `railway volume files upload` (not part of this build).
+ENV PROMPT_DIR=/data/prompts
+
+# chromadb's embedding function hardcodes its ONNX model cache to
+# Path.home()/.cache/chroma -- which Python resolves from $HOME. Left at the
+# default (some ephemeral container path), that ~80MB model re-downloads on
+# every single redeploy and container restart, and any request that needs an
+# embedding while the download is still in flight gets back an empty/failed
+# semantic search -- this was misdiagnosed earlier as "ChromaDB recall gets
+# worse as the collection grows" when it was actually "the model isn't
+# cached yet after this restart." Pointing $HOME at the persistent volume
+# fixes it at the source.
+ENV HOME=/data/home
+RUN mkdir -p /data/home
+
 EXPOSE 8000
 
 # Shell form (not exec form) so $PORT actually expands -- Railway assigns it

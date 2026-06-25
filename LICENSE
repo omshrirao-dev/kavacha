@@ -1,0 +1,27 @@
+Copyright (c) 2026 Om Shrirao. All Rights Reserved.
+
+This repository is made publicly visible for portfolio, hiring, and
+educational purposes only.
+
+Permission is granted to view, read, and study this source code for those
+purposes. No permission is granted to:
+
+  - copy, reproduce, or redistribute this code, in whole or in part;
+  - use this code, in whole or in part, in any other project;
+  - use this code for any commercial purpose;
+  - create derivative works based on this code;
+
+without prior written permission from the copyright holder.
+
+This repository deliberately does not include certain files (see
+app/core/prompts.py and the "prompts/" directory referenced there) --
+their absence is intentional and is not a bug or an incomplete checkout.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+For permission requests, contact: omshrirao78@gmail.com

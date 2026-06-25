@@ -11,7 +11,8 @@
 
 [![Backend](https://img.shields.io/badge/backend-live-brightgreen)](https://kavacha-backend-production.up.railway.app/health)
 [![Frontend](https://img.shields.io/badge/dashboard-live-brightgreen)](https://kavacha-rho.vercel.app)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](kavacha-sdk/pyproject.toml)
+[![License](https://img.shields.io/badge/license-proprietary-lightgrey)](LICENSE)
+[![SDK License: MIT](https://img.shields.io/badge/SDK%20license-MIT-blue)](kavacha-sdk/pyproject.toml)
 
 **Live dashboard:** https://kavacha-rho.vercel.app
 **Live demo (no signup needed):** https://kavacha-rho.vercel.app/demo
@@ -173,3 +174,7 @@ SECURITY.md      All 9 security rules with implementation evidence and real gaps
 ---
 
 Built in 21 days. Deployed live. *Har Har Mahadev.*
+
+---
+
+Kavacha is a proprietary project. Code is visible for portfolio and educational purposes. Commercial use prohibited without permission. See [LICENSE](LICENSE). The `kavacha-sdk/` Python client is separately MIT-licensed, since the whole point of a client SDK is for people to actually use it — see [kavacha-sdk/pyproject.toml](kavacha-sdk/pyproject.toml). A small number of files (the exact wording of each agent's system prompt) are intentionally not included in this repo — see [`app/core/prompts.py`](app/core/prompts.py).

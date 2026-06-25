@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# --- Private IP: agent system prompts (see LICENSE, app/core/prompts.py) ---
+prompts/
+
 # --- Python ---
 __pycache__/
 *.py[cod]

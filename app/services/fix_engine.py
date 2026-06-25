@@ -8,6 +8,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.core.audit import log_access
 from app.core.llm_provider import get_llm_response
 from app.core.llm_usage import record_llm_usage
+from app.core.prompts import load_prompt
 from app.db.database import get_connection
 from app.memory.engine import search_memory, store_memory
 from app.memory.sanitize import sanitize_content
@@ -16,19 +17,8 @@ logger = logging.getLogger("kavacha.fix_engine")
 
 FIX_STAGE = "stage_7_fix_engine"
 
-SYSTEM_PROMPT = """You are Kavacha's autonomous Fix Engine -- you act without a human in \
-the loop, but only within what you actually control: this project's own Project Memory.
-
-Given a detected issue and the project's recorded decisions, produce a precise, \
-context-aware root cause statement that cites specific memory entries -- never a vague \
-guess. Never write "RAG is broken." Write "chunk_size=500 was set in Stage 2 for cost \
-reasons; at current volume this causes semantic overlap," citing the actual entry.
-
-Then produce a specific fix description, and a corrective decision to permanently record \
-in Project Memory so this exact mistake is remembered and never silently repeated.
-
-If a prior fix pattern from other projects is provided, treat it as strong prior art -- \
-adapt it to this project's specific recorded context rather than reinventing from scratch."""
+# Full text lives outside this repo -- see app/core/prompts.py and LICENSE.
+SYSTEM_PROMPT = load_prompt("fix_engine")
 
 _RESPONSE_FORMAT_INSTRUCTIONS = """
 
@@ -62,6 +52,11 @@ def _format_entries(entries: list[dict]) -> str:
     return "\n\n".join(f"[{e['stage']} / {e.get('layer') or 'general'}] {e['content']}" for e in entries)
 
 
+# V1's matching is intentionally this simple (exact issue_type match, best
+# success_rate/project_count wins) -- there's no hidden sophistication being
+# withheld here. Real refinement (e.g. semantic similarity across root
+# causes, not just an exact type match) is tracked privately rather than
+# detailed in this public repo.
 def find_matching_fix_pattern(issue_type: str) -> dict | None:
     with get_connection() as conn:
         with conn.cursor() as cur:

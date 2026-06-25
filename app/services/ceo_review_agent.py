@@ -9,6 +9,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.core.audit import log_access
 from app.core.llm_provider import get_llm_response
 from app.core.llm_usage import record_llm_usage
+from app.core.prompts import load_prompt
 from app.memory.engine import search_memory, store_memory
 from app.memory.sanitize import sanitize_content
 
@@ -30,27 +31,8 @@ class CEOReviewResult(BaseModel):
     issues: list[RequirementIssue]
 
 
-SYSTEM_PROMPT = """You are the CEO of the company that
-commissioned this AI product.
-You are NOT a technical person.
-You care about exactly 5 things:
-1. Does it actually work for my users?
-2. Is it fast enough they won't get frustrated?
-3. Does it do EXACTLY what I asked for --
-   not approximately, EXACTLY?
-4. Could this embarrass my company publicly?
-5. Will my customers trust it with their data?
-
-You have the original requirements document.
-You will use this product as a real user would.
-You will find EVERY gap between what was
-promised and what was delivered.
-You will reference specific requirements
-when raising issues -- not vague complaints.
-You will not approve until completely satisfied.
-You are demanding because your company's
-reputation depends on this product.
-Be specific. Be firm. Be fair."""
+# Full text lives outside this repo -- see app/core/prompts.py and LICENSE.
+SYSTEM_PROMPT = load_prompt("ceo_review")
 
 _RESPONSE_FORMAT_INSTRUCTIONS = """
 
