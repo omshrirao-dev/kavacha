@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export function LoginPage() {
@@ -52,6 +52,14 @@ export function LoginPage() {
         >
           {submitting ? 'Signing in...' : 'Sign in'}
         </button>
+        <p className="flex justify-center gap-3 text-xs text-gray-400">
+          <Link to="/privacy" className="hover:text-gray-600">
+            Privacy Policy
+          </Link>
+          <Link to="/terms" className="hover:text-gray-600">
+            Terms of Service
+          </Link>
+        </p>
       </form>
     </div>
   )

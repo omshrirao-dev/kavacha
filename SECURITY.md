@@ -65,6 +65,13 @@ It does **not** open a pull request, run a shell command, deploy anything, or to
 - **SQL injection**: every query uses parameterized placeholders (`psycopg2`'s `%s`), never string-formatted SQL, anywhere in the codebase.
 - **HTTPS**: enforced at the platform edge (Railway 301-redirects HTTP→HTTPS on the public domain, confirmed live) rather than in application middleware — see "Gap found and fixed" below for why that specific split matters.
 - **Debug surface**: `/docs`, `/redoc`, and `/openapi.json` are only mounted when `APP_ENV=development` — confirmed 404 on the live production URL.
+- **Security headers**: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection`, `Referrer-Policy: strict-origin-when-cross-origin`, and a `Content-Security-Policy: default-src 'none'` (this API serves JSON only — there's nothing for a CSP to permit) on every response, including 401/429 rejections. [`app/core/security_headers.py`](app/core/security_headers.py)
+- **Login is the most targeted screen in any app, hardened accordingly**: the dashboard no longer signs in by calling Supabase directly from the browser — it goes through `POST /api/v1/auth/login` so Kavacha's own backend can enforce all of the following, verified live:
+  - Server-side validation (email format + 254-char max, password 8–128 chars) before any database query or upstream call.
+  - Account lockout: 5 failed attempts within 15 minutes locks the account for 30 minutes, tracked in `login_attempts` via a single atomic upsert (no read-then-write race between concurrent attempts). [`app/core/login_security.py`](app/core/login_security.py)
+  - One generic message — `"Incorrect email or password"` — for every failure case (wrong password, nonexistent email, or anything else), confirmed identical for both a real and a fake email so the login screen can't be used to enumerate which accounts exist.
+  - Every attempt (success, failure, or lockout) is written to `audit_log` with the source IP, not just a log line.
+  - Monitor Agent Track A checks, on every scheduled run, whether the current project's owner is one of 10+ distinct emails a single IP has failed against in the last hour — a credential-stuffing pattern — and raises a CRITICAL issue with a real notification if so, deduplicated so it doesn't spam the same project repeatedly within the window. [`app/services/monitor_agent.py`](app/services/monitor_agent.py)
 
 ## Rule 9 — Security at every stage, not bolted on at the end
 

@@ -9,10 +9,11 @@ from starlette.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
-from app.api.v1 import architect, ceo_review, compliance, fix_patterns, issues, memory, monitor, projects, sdk  # noqa: E402
+from app.api.v1 import architect, auth, ceo_review, compliance, fix_patterns, issues, memory, monitor, projects, sdk  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.core.limiter import limiter  # noqa: E402
 from app.core.middleware import SupabaseAuthMiddleware  # noqa: E402
+from app.core.security_headers import SecurityHeadersMiddleware  # noqa: E402
 from app.db.database import close_pool, init_pool  # noqa: E402
 
 IS_DEV = settings.app_env == "development"
@@ -46,7 +47,7 @@ app.add_middleware(SlowAPIMiddleware)
 # probe and the deploy would never go healthy.
 app.add_middleware(SupabaseAuthMiddleware)
 
-# Added last (outermost) so CORS preflight (OPTIONS) is answered before the
+# CORS next-to-outermost so preflight (OPTIONS) is answered before the
 # request ever reaches auth -- browsers send preflight without credentials.
 app.add_middleware(
     CORSMiddleware,
@@ -56,6 +57,16 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
+# Outermost of all: added last so it wraps every response on the way out,
+# including early 401/429 rejections from the auth middleware below -- a
+# rejected request needs these headers as much as a successful one does.
+# This API is JSON-only in production -- docs/redoc (the only HTML this
+# process ever serves) are dev-only, so the CSP can be maximally strict
+# with nothing of its own to break. In dev, skip it rather than special-case
+# the CDN that Swagger UI's bundled assets load from.
+app.add_middleware(SecurityHeadersMiddleware, csp=None if IS_DEV else "default-src 'none'; frame-ancestors 'none'")
+
+app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(architect.router)
 app.include_router(memory.router)

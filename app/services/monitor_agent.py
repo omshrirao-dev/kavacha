@@ -8,12 +8,12 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.llm_provider import get_llm_response
 from app.core.llm_usage import record_llm_usage
-from app.core.notifier import format_issue_notification, send_notification
+from app.core.notifier import format_issue_notification, resolve_owner_email, send_notification
 from app.db.database import get_connection
 from app.memory.engine import search_memory
 from app.memory.sanitize import sanitize_content
 from app.services.ceo_review_agent import run_ceo_review
-from app.services.fix_engine import mark_issue_verified, resolve_issue
+from app.services.fix_engine import create_issue, mark_issue_verified, resolve_issue
 
 logger = logging.getLogger("kavacha.monitor")
 
@@ -126,8 +126,87 @@ def _record_test_run(monitor_test_id: str, project_id: str, passed: bool, severi
             )
 
 
+CREDENTIAL_STUFFING_DISTINCT_EMAILS = 10
+CREDENTIAL_STUFFING_WINDOW_HOURS = 1
+
+
+def _check_credential_stuffing(owner_id: str) -> dict | None:
+    """Day 21 addition to Track A: login attempts are account-level, not
+    project-scoped, so this doesn't query anything project-specific -- it
+    asks one question: is this project's owner currently a target of an IP
+    trying many different emails (credential stuffing), using the same
+    audit_log rows /api/v1/auth/login already writes on every attempt."""
+    owner_email = resolve_owner_email(owner_id)
+    if owner_email is None:
+        return None
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT metadata->>'ip' AS ip, array_agg(DISTINCT actor_id) AS emails
+                FROM audit_log
+                WHERE action = 'login_attempt' AND outcome IN ('failure', 'locked_out')
+                  AND created_at > now() - interval '{CREDENTIAL_STUFFING_WINDOW_HOURS} hours'
+                GROUP BY metadata->>'ip'
+                HAVING count(DISTINCT actor_id) >= {CREDENTIAL_STUFFING_DISTINCT_EMAILS}
+                """
+            )
+            for ip, emails in cur.fetchall():
+                if owner_email in emails:
+                    return {"ip": ip, "distinct_emails": len(emails)}
+    return None
+
+
+def _credential_stuffing_already_flagged(project_id: str) -> bool:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT 1 FROM issues
+                WHERE project_id = %s::uuid AND type = 'credential_stuffing'
+                  AND detected_at > now() - interval '{CREDENTIAL_STUFFING_WINDOW_HOURS} hours'
+                """,
+                (project_id,),
+            )
+            return cur.fetchone() is not None
+
+
+def _check_and_raise_credential_stuffing(project_id: str, owner_id: str) -> None:
+    pattern = _check_credential_stuffing(owner_id)
+    if pattern is None or _credential_stuffing_already_flagged(project_id):
+        return
+
+    description = (
+        f"Credential stuffing pattern detected: a single source tried "
+        f"{pattern['distinct_emails']} different email addresses (including this account's) "
+        f"within the last {CREDENTIAL_STUFFING_WINDOW_HOURS} hour(s)."
+    )
+    issue_id = create_issue(
+        project_id=project_id,
+        issue_type="credential_stuffing",
+        severity="CRITICAL",
+        description=description,
+        root_cause=f"Repeated failed logins across many distinct accounts from one source (ip={pattern['ip']}).",
+        memory_reference_ids=[],
+    )
+    mark_issue_verified(issue_id, verified=True)
+    notification = format_issue_notification(
+        detected_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        plain_english_summary=(
+            "Your Kavacha account's email was one of several targeted by what looks like an "
+            "automated credential-stuffing attempt against the login page."
+        ),
+        root_cause=description,
+        fix_description="No action needed unless you don't recognize this -- the login lockout already blocks repeated guesses against your account.",
+        verified=True,
+    )
+    send_notification(owner_id, subject="Kavacha detected a credential stuffing attempt", message=notification)
+
+
 def run_track_a(project_id: str) -> list[dict]:
     owner_id = _get_owner_id(project_id)
+    _check_and_raise_credential_stuffing(project_id, owner_id)
     tests = _get_monitor_tests(project_id)
     context_entries = search_memory(project_id, query="product behavior and requirements", n_results=15)
     context_text = sanitize_content(

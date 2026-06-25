@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { API_BASE_URL } from '../lib/api'
 import { supabase } from '../lib/supabase'
 
 interface AuthContextValue {
@@ -28,8 +29,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.subscription.unsubscribe()
   }, [])
 
+  // Goes through Kavacha's own backend rather than calling Supabase directly
+  // -- /api/v1/auth/login is what applies account lockout, generic error
+  // messages, and audit logging (Day 21 login hardening). The session it
+  // returns is then handed to the Supabase client so the rest of the app's
+  // existing apiFetch -> supabase.auth.getSession() flow keeps working
+  // unchanged.
   async function login(email: string, password: string): Promise<string | null> {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}))
+      const detail = body.detail
+      return typeof detail === 'string' ? detail : 'Incorrect email or password'
+    }
+
+    const { access_token, refresh_token } = await response.json()
+    const { error } = await supabase.auth.setSession({ access_token, refresh_token })
     return error ? error.message : null
   }
 

@@ -37,7 +37,7 @@ def _send_via_log(owner_id: str, subject: str, message: str) -> None:
     logger.info("NOTIFICATION (owner=%s) %s\n%s", owner_id, subject, message)
 
 
-def _resolve_owner_email(owner_id: str) -> str | None:
+def resolve_owner_email(owner_id: str) -> str | None:
     # Reads from the user_emails VIEW, not auth.users directly -- kavacha_app
     # has no grant on auth.users itself (Rule 4 least privilege).
     with get_connection() as conn:
@@ -51,7 +51,7 @@ def _send_via_sendgrid(owner_id: str, subject: str, message: str) -> None:
     if not settings.sendgrid_api_key:
         raise RuntimeError("NOTIFICATION_PROVIDER=sendgrid but SENDGRID_API_KEY is not set")
 
-    email = _resolve_owner_email(owner_id)
+    email = resolve_owner_email(owner_id)
     if not email:
         logger.warning("no email found for owner %s -- falling back to log provider", owner_id)
         _send_via_log(owner_id, subject, message)

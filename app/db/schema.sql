@@ -141,6 +141,18 @@ CREATE TABLE IF NOT EXISTS sdk_events (
 );
 CREATE INDEX IF NOT EXISTS idx_sdk_events_project_id ON sdk_events(project_id);
 
+-- Day 21 (login screen hardening): lockout STATE only -- one row per email,
+-- mutated atomically on every attempt. The forensic history of every attempt
+-- (who, when, from where, success/failure) lives in audit_log below instead
+-- of being duplicated here -- this table only ever needs to answer "is this
+-- email locked right now," not "what happened."
+CREATE TABLE IF NOT EXISTS login_attempts (
+    email           TEXT PRIMARY KEY,
+    attempt_count   INTEGER NOT NULL DEFAULT 0,
+    last_attempt    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    locked_until    TIMESTAMPTZ
+);
+
 -- Security Addendum Rule 3 (Immutable Audit Trail): every authenticated
 -- access is recorded here by the auth middleware itself, so new routes
 -- under /api/v1 are covered automatically without remembering to log.
@@ -179,7 +191,7 @@ BEGIN
     FOREACH t IN ARRAY ARRAY[
         'projects', 'project_memory', 'issues', 'monitor_tests', 'audit_log',
         'monitor_test_runs', 'llm_usage', 'fix_patterns', 'compliance_snapshots',
-        'api_keys', 'sdk_events'
+        'api_keys', 'sdk_events', 'login_attempts'
     ]
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS kavacha_app_full_access ON %I', t);

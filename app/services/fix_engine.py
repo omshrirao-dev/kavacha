@@ -104,7 +104,7 @@ def _upsert_fix_pattern(issue_type: str, root_cause: str, fix_description: str) 
                 )
 
 
-def _create_issue(
+def create_issue(
     project_id: str, issue_type: str, severity: str, description: str, root_cause: str, memory_reference_ids: list[str]
 ) -> str:
     with get_connection() as conn:
@@ -165,7 +165,7 @@ def resolve_issue(
     fix_spec = _generate_fix_spec(project_id, memory_text, pattern_text, purpose)
 
     memory_reference_ids = [e["id"] for e in memory_context]
-    issue_id = _create_issue(project_id, issue_type, severity, description, fix_spec.root_cause, memory_reference_ids)
+    issue_id = create_issue(project_id, issue_type, severity, description, fix_spec.root_cause, memory_reference_ids)
 
     fix_memory_id = store_memory(
         project_id=project_id,

@@ -28,6 +28,16 @@ export function Layout() {
       <main className="mx-auto max-w-6xl px-6 py-8">
         <Outlet />
       </main>
+      <footer className="border-t border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-6xl gap-4 px-6 py-4 text-xs text-gray-500">
+          <Link to="/privacy" className="hover:text-gray-700">
+            Privacy Policy
+          </Link>
+          <Link to="/terms" className="hover:text-gray-700">
+            Terms of Service
+          </Link>
+        </div>
+      </footer>
     </div>
   )
 }
