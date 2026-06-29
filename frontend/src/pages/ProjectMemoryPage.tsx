@@ -3,8 +3,8 @@ import { useParams } from 'react-router-dom'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { ProjectHeader } from '../components/ProjectHeader'
 import { ProjectTabs } from '../components/ProjectTabs'
-import { Spinner } from '../components/Spinner'
 import { BentoCard } from '../components/ui/BentoCard'
+import { SkeletonCard } from '../components/ui/SkeletonCard'
 import { ApiError, apiFetch } from '../lib/api'
 import type { MemoryEntry, MemorySearchResult } from '../lib/types'
 
@@ -103,7 +103,11 @@ export function ProjectMemoryPage() {
             searchResults.map((r) => <MemoryCard key={r.id} entry={r} />)
           )
         ) : entries === null ? (
-          <Spinner label="Loading memory..." />
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
         ) : entries.length === 0 ? (
           <p className="text-ink-faint">No decisions recorded for this project yet.</p>
         ) : (

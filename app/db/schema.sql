@@ -201,3 +201,33 @@ BEGIN
         );
     END LOOP;
 END $$;
+
+-- Self-serve onboarding (Real-Product Upgrade): projects can now be created
+-- directly via POST /api/v1/projects, without going through the Architect
+-- Agent -- these columns capture what that form collects. ai_model/framework
+-- are set once at creation (they personalize the SDK Setup snippet) and have
+-- no edit path; the rest are editable from the Settings tab.
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS ai_model TEXT;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS framework TEXT;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS notification_email TEXT;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS alerts_enabled BOOLEAN NOT NULL DEFAULT true;
+
+-- Persisted (not just the in-memory APScheduler job state) so a redeploy
+-- doesn't silently resume a project the owner explicitly paused, and so
+-- app startup knows which projects to re-arm monitoring for -- see
+-- the lifespan startup hook in app/main.py.
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS monitoring_paused BOOLEAN NOT NULL DEFAULT false;
+
+-- Real-Product Upgrade, Fix Engine approval gate: CRITICAL issues are now
+-- diagnosed but not auto-applied (Rule 7) -- these columns hold the proposed
+-- fix until a human clicks "Apply Fix" (POST .../issues/{id}/apply-fix).
+-- INFO/WARNING issues are unaffected: they still auto-apply immediately and
+-- never populate these columns. pending_fix_context carries whatever the
+-- track-specific re-verification step needs after the fix is applied later
+-- (e.g. Track A's test_query/expected_behavior).
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS dismissed BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS proposed_fix_description TEXT;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS proposed_corrective_decision TEXT;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS estimated_cost_impact TEXT;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS pending_fix_context JSONB;

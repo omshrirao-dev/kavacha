@@ -8,6 +8,20 @@ export interface Project {
   health: HealthStatus
 }
 
+// GET /api/v1/projects/{id} (the single-project view) returns this full
+// shape; GET /api/v1/projects (the list view, used for project cards) only
+// returns the slimmer Project above.
+export interface ProjectDetail extends Project {
+  description: string | null
+  ai_model: string | null
+  framework: string | null
+  monthly_budget: number | null
+  deployed_url: string | null
+  notification_email: string | null
+  alerts_enabled: boolean
+  monitoring_paused: boolean
+}
+
 export interface MemoryEntry {
   id: string
   stage: string
@@ -34,6 +48,9 @@ export interface Issue {
   fix_applied: boolean
   verified: boolean
   time_to_resolve_mins: number | null
+  dismissed: boolean
+  proposed_fix_description: string | null
+  estimated_cost_impact: string | null
 }
 
 export interface RequirementIssue {

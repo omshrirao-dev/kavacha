@@ -62,4 +62,19 @@ def get_supabase_client() -> Client:
     return create_client(settings.supabase_url, settings.supabase_key)
 
 
+def get_supabase_admin_client() -> Client:
+    """A fresh, never-cached client for admin-only calls (auth.admin.* --
+    update_user_by_id, delete_user). Deliberately NOT get_supabase_client():
+    that singleton is also used by /api/v1/auth/login's sign_in_with_password,
+    which mutates the underlying GoTrue client's session state -- any
+    admin.* call made afterward on that same cached instance silently runs
+    as the just-signed-in user instead of the service-role key and fails
+    with "User not allowed". Confirmed live: identical code, same key,
+    works via a fresh client and fails via the shared one. A new Client
+    here is cheap (an HTTP client wrapper, no real connection) so there's
+    no caching upside worth the risk for this one."""
+    settings = get_settings()
+    return create_client(settings.supabase_url, settings.supabase_key)
+
+
 settings = get_settings()

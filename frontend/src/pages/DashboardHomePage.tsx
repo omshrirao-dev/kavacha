@@ -5,8 +5,9 @@ import { CountUp } from '../components/ui/CountUp'
 import { HealthBadge } from '../components/HealthBadge'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { Spinner } from '../components/Spinner'
+import { SkeletonCard } from '../components/ui/SkeletonCard'
 import { ApiError, apiFetch } from '../lib/api'
-import type { DashboardSummary, Project } from '../lib/types'
+import type { CostIntelligence, DashboardSummary, Issue, Project } from '../lib/types'
 
 function HealthOverview({ projects }: { projects: Project[] }) {
   const counts = { green: 0, yellow: 0, red: 0 }
@@ -43,6 +44,78 @@ function MetricCard({ label, value, suffix, accent }: { label: string; value: nu
   )
 }
 
+// Each card fetches its own issues/cost so the project list renders
+// immediately and per-card detail streams in -- same stale-while-revalidate
+// spirit as ProjectHeader's cache, just without a cache since this is a
+// one-time mount per card, not something switched between repeatedly.
+function ProjectCard({ project }: { project: Project }) {
+  const [openIssues, setOpenIssues] = useState<number | null>(null)
+  const [cost, setCost] = useState<CostIntelligence | null>(null)
+
+  useEffect(() => {
+    apiFetch<Issue[]>(`/api/v1/projects/${project.id}/issues`)
+      .then((issues) => setOpenIssues(issues.filter((i) => !i.dismissed && !(i.fix_applied && i.verified)).length))
+      .catch(() => setOpenIssues(null))
+    apiFetch<CostIntelligence>(`/api/v1/monitor/cost?project_id=${project.id}`)
+      .then(setCost)
+      .catch(() => setCost(null))
+  }, [project.id])
+
+  return (
+    <BentoCard>
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-medium text-ink">{project.name}</p>
+        <HealthBadge status={project.health} />
+      </div>
+      <p className="mt-1 text-xs text-ink-faint">Created {new Date(project.created_at).toLocaleDateString()}</p>
+      <p className="mt-3 text-sm text-ink-dim">{openIssues === null ? 'Issues: ...' : `Issues: ${openIssues} open`}</p>
+      <p className="text-sm text-ink-dim">
+        {cost === null
+          ? 'Budget: ...'
+          : cost.budget_usd !== null
+            ? `Budget: $${cost.total_cost_usd.toFixed(2)} / $${cost.budget_usd.toFixed(2)} projected`
+            : 'Budget: not set'}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+        <Link
+          to={`/projects/${project.id}/overview`}
+          className="rounded-md border border-edge px-2.5 py-1 text-ink-dim hover:border-saffron-bright hover:text-ink"
+        >
+          View Details
+        </Link>
+        <Link
+          to={`/projects/${project.id}/monitor`}
+          className="rounded-md border border-edge px-2.5 py-1 text-ink-dim hover:border-saffron-bright hover:text-ink"
+        >
+          Monitor
+        </Link>
+        <Link
+          to={`/projects/${project.id}/review`}
+          className="rounded-md border border-edge px-2.5 py-1 text-ink-dim hover:border-saffron-bright hover:text-ink"
+        >
+          CEO Review
+        </Link>
+      </div>
+    </BentoCard>
+  )
+}
+
+function EmptyState() {
+  return (
+    <div className="rounded-xl border border-edge bg-card p-12 text-center">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full gradient-bg text-2xl">🛡️</div>
+      <p className="font-medium text-ink">Your first AI project is waiting to be monitored</p>
+      <p className="mt-1 text-sm text-ink-dim">Connect it and Kavacha starts watching immediately.</p>
+      <Link
+        to="/projects/new"
+        className="mt-5 inline-block rounded-md gradient-bg px-5 py-2.5 text-sm font-semibold text-surface shadow-[0_0_24px_-4px_var(--saffron-glow)]"
+      >
+        Add it in 60 seconds →
+      </Link>
+    </div>
+  )
+}
+
 export function DashboardHomePage() {
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
@@ -57,11 +130,29 @@ export function DashboardHomePage() {
   }, [])
 
   if (error) return <ErrorBanner message={`Failed to load projects: ${error}`} />
-  if (!projects) return <Spinner label="Loading dashboard..." />
+  if (!projects) {
+    return (
+      <div>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-ink">Dashboard</h1>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
+        <Link to="/projects/new" className="rounded-md gradient-bg px-4 py-2 text-sm font-medium text-surface">
+          + Add New Project
+        </Link>
+      </div>
 
       {projects.length > 0 && <HealthOverview projects={projects} />}
 
@@ -88,24 +179,11 @@ export function DashboardHomePage() {
 
       <h2 className="mb-3 text-sm font-semibold text-ink-dim">Your projects</h2>
       {projects.length === 0 ? (
-        <p className="text-ink-faint">No projects yet.</p>
+        <EmptyState />
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((p) => (
-            <Link
-              key={p.id}
-              to={`/projects/${p.id}/memory`}
-              className="flex items-center justify-between rounded-lg border border-edge bg-card p-4 transition-colors hover:border-saffron/40"
-            >
-              <div>
-                <p className="font-medium text-ink">{p.name}</p>
-                <p className="text-xs text-ink-faint">{new Date(p.created_at).toLocaleString()}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-ink-dim">{p.status}</span>
-                <HealthBadge status={p.health} />
-              </div>
-            </Link>
+            <ProjectCard key={p.id} project={p} />
           ))}
         </div>
       )}

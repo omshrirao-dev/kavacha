@@ -8,13 +8,20 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.llm_provider import get_llm_response
 from app.core.llm_usage import record_llm_usage
-from app.core.notifier import format_issue_notification, resolve_owner_email, send_notification
+from app.core.notifier import (
+    format_issue_notification,
+    format_pending_fix_notification,
+    resolve_notification_email,
+    resolve_owner_email,
+    send_notification,
+    should_notify,
+)
 from app.core.prompts import load_prompt
 from app.db.database import get_connection
 from app.memory.engine import search_memory
 from app.memory.sanitize import sanitize_content
 from app.services.ceo_review_agent import run_ceo_review
-from app.services.fix_engine import create_issue, mark_issue_verified, resolve_issue
+from app.services.fix_engine import create_issue, diagnose_and_maybe_apply_fix, mark_issue_verified
 
 logger = logging.getLogger("kavacha.monitor")
 
@@ -33,6 +40,15 @@ def _get_owner_id(project_id: str) -> str:
     if row is None:
         raise ValueError(f"Project {project_id} not found")
     return str(row[0])
+
+
+def _notify(project_id: str, owner_id: str, subject: str, message: str) -> None:
+    """Settings-tab alerts_enabled toggle + notification_email override
+    (Real-Product Upgrade) apply to every monitor notification uniformly --
+    centralized here so each track's code only needs this one call."""
+    if not should_notify(project_id):
+        return
+    send_notification(owner_id, subject=subject, message=message, email_override=resolve_notification_email(project_id, owner_id))
 
 
 # ---------------------------------------------------------------------------
@@ -193,7 +209,29 @@ def _check_and_raise_credential_stuffing(project_id: str, owner_id: str) -> None
         fix_description="No action needed unless you don't recognize this -- the login lockout already blocks repeated guesses against your account.",
         verified=True,
     )
-    send_notification(owner_id, subject="Kavacha detected a credential stuffing attempt", message=notification)
+    _notify(project_id, owner_id, subject="Kavacha detected a credential stuffing attempt", message=notification)
+
+
+def reverify_pending_fix(project_id: str, pending_fix_context: dict | None) -> bool:
+    """Track-specific re-verification for a fix that was just applied via
+    POST .../issues/{id}/apply-fix. Only Track A has something to actually
+    re-check (re-running the original test query); Track B/C have nothing
+    further to verify -- the corrective memory entry IS the fix, same as the
+    non-pending path in run_track_b/run_track_c. Unlike the inline recheck in
+    run_track_a (which reuses a context_text snapshot from before the fix),
+    this re-fetches memory fresh, so it correctly sees the fix that was just
+    written -- a deliberate improvement, not a behavior this needs to match."""
+    if not pending_fix_context or pending_fix_context.get("track") != "track_a":
+        return True
+
+    context_entries = search_memory(project_id, query="product behavior and requirements", n_results=15)
+    context_text = sanitize_content(
+        "\n\n".join(f"[{e['stage']}/{e.get('layer') or 'general'}] {e['content']}" for e in context_entries)
+    )
+    recheck = _run_hallucination_check(
+        project_id, context_text, pending_fix_context["test_query"], pending_fix_context["expected_behavior"]
+    )
+    return recheck.verdict == "pass"
 
 
 def run_track_a(project_id: str) -> list[dict]:
@@ -214,14 +252,26 @@ def run_track_a(project_id: str) -> list[dict]:
         if passed:
             continue
 
-        result = resolve_issue(
+        result = diagnose_and_maybe_apply_fix(
             project_id=project_id,
             owner_id=owner_id,
             issue_type="hallucination",
             severity=check.verdict.upper(),
             description=f"Test query '{test['test_query']}' diverged from expected behavior: {check.explanation}",
             purpose="monitor_track_a_fix",
+            pending_fix_context={"track": "track_a", "test_query": test["test_query"], "expected_behavior": test["expected_behavior"]},
         )
+
+        if result["pending"]:
+            notification = format_pending_fix_notification(
+                detected_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+                plain_english_summary=f"It gave a response that diverged from expected behavior for: \"{test['test_query']}\"",
+                root_cause=result["root_cause"],
+                fix_description=result["fix_description"],
+            )
+            _notify(project_id, owner_id, subject="Kavacha found a critical issue that needs your approval", message=notification)
+            issues_raised.append({**result, "test_query": test["test_query"]})
+            continue
 
         # Genuine re-verification: re-run the exact same check after the fix
         # was applied to Project Memory, since the simulated target reads
@@ -237,7 +287,7 @@ def run_track_a(project_id: str) -> list[dict]:
             fix_description=result["fix_description"],
             verified=verified,
         )
-        send_notification(owner_id, subject="Kavacha detected a hallucination issue", message=notification)
+        _notify(project_id, owner_id, subject="Kavacha detected a hallucination issue", message=notification)
 
         issues_raised.append({**result, "verified": verified, "test_query": test["test_query"]})
 
@@ -331,27 +381,42 @@ def run_track_b(project_id: str) -> dict | None:
         f"(based on {trajectory['days_elapsed']:.2f} days of usage, ${trajectory['total_cost_usd']:.4f} spent so far)."
     )
 
-    result = resolve_issue(
+    severity = "WARNING" if trajectory["projected_monthly_usd"] <= budget_usd * 1.5 else "CRITICAL"
+    result = diagnose_and_maybe_apply_fix(
         project_id=project_id,
         owner_id=owner_id,
         issue_type="cost_overrun",
-        severity="WARNING" if trajectory["projected_monthly_usd"] <= budget_usd * 1.5 else "CRITICAL",
+        severity=severity,
         description=description,
         purpose="monitor_track_b_fix",
+        pending_fix_context={"track": "track_b"},
     )
+
+    plain_english_summary = (
+        f"You approved ${budget_usd:.2f}/month in Stage 2. At current usage you are "
+        f"projected to spend ${trajectory['projected_monthly_usd']:.2f}/month."
+    )
+
+    if result["pending"]:
+        notification = format_pending_fix_notification(
+            detected_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+            plain_english_summary=plain_english_summary,
+            root_cause=result["root_cause"],
+            fix_description=result["fix_description"],
+        )
+        _notify(project_id, owner_id, subject="Kavacha found a critical cost overrun that needs your approval", message=notification)
+        return {**result, "budget_usd": budget_usd, **trajectory}
+
     mark_issue_verified(result["issue_id"], verified=True)  # the corrective memory entry IS the fix; nothing further to re-check
 
     notification = format_issue_notification(
         detected_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-        plain_english_summary=(
-            f"You approved ${budget_usd:.2f}/month in Stage 2. At current usage you are "
-            f"projected to spend ${trajectory['projected_monthly_usd']:.2f}/month."
-        ),
+        plain_english_summary=plain_english_summary,
         root_cause=result["root_cause"],
         fix_description=result["fix_description"],
         verified=True,
     )
-    send_notification(owner_id, subject="Kavacha detected a cost overrun risk", message=notification)
+    _notify(project_id, owner_id, subject="Kavacha detected a cost overrun risk", message=notification)
 
     return {**result, "budget_usd": budget_usd, **trajectory}
 
@@ -398,23 +463,37 @@ def run_track_c(project_id: str) -> dict | None:
         f"{new_issue_count} issue(s) ({'approved' if fresh['approved'] else 'rejected'})."
     )
 
-    result = resolve_issue(
+    result = diagnose_and_maybe_apply_fix(
         project_id=project_id,
         owner_id=owner_id,
         issue_type="behavior_drift",
         severity=severity,
         description=description,
         purpose="monitor_track_c_fix",
+        pending_fix_context={"track": "track_c"},
     )
+
+    plain_english_summary = "The CEO review re-check found the product has gotten worse since it was last reviewed."
+
+    if result["pending"]:
+        notification = format_pending_fix_notification(
+            detected_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+            plain_english_summary=plain_english_summary,
+            root_cause=result["root_cause"],
+            fix_description=result["fix_description"],
+        )
+        _notify(project_id, owner_id, subject="Kavacha found critical behavior drift that needs your approval", message=notification)
+        return {**result, "baseline_issue_count": baseline["issue_count"], "new_issue_count": new_issue_count}
+
     mark_issue_verified(result["issue_id"], verified=True)
 
     notification = format_issue_notification(
         detected_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-        plain_english_summary="The CEO review re-check found the product has gotten worse since it was last reviewed.",
+        plain_english_summary=plain_english_summary,
         root_cause=result["root_cause"],
         fix_description=result["fix_description"],
         verified=True,
     )
-    send_notification(owner_id, subject="Kavacha detected behavior drift", message=notification)
+    _notify(project_id, owner_id, subject="Kavacha detected behavior drift", message=notification)
 
     return {**result, "baseline_issue_count": baseline["issue_count"], "new_issue_count": new_issue_count}

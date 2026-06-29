@@ -9,19 +9,35 @@ from starlette.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
-from app.api.v1 import architect, auth, ceo_review, compliance, dashboard, demo, fix_patterns, issues, memory, monitor, projects, sdk  # noqa: E402
+from app.api.v1 import architect, auth, ceo_review, compliance, dashboard, demo, fix_patterns, issues, memory, monitor, projects, sdk, user  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.core.limiter import limiter  # noqa: E402
 from app.core.middleware import SupabaseAuthMiddleware  # noqa: E402
+from app.core.scheduler import start_monitoring  # noqa: E402
 from app.core.security_headers import SecurityHeadersMiddleware  # noqa: E402
-from app.db.database import close_pool, init_pool  # noqa: E402
+from app.db.database import close_pool, get_connection, init_pool  # noqa: E402
 
 IS_DEV = settings.app_env == "development"
+
+
+def _rearm_monitoring() -> None:
+    """APScheduler jobs (app/core/scheduler.py) live in memory only and
+    vanish on every redeploy. monitoring_paused is persisted specifically so
+    a project the owner explicitly paused stays paused across a restart,
+    while everything else resumes -- without this, a redeploy would either
+    silently stop monitoring everyone or silently un-pause everyone."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM projects WHERE monitoring_paused = false")
+            project_ids = [str(row[0]) for row in cur.fetchall()]
+    for project_id in project_ids:
+        start_monitoring(project_id)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_pool()
+    _rearm_monitoring()
     yield
     close_pool()
 
@@ -78,6 +94,7 @@ app.include_router(monitor.router)
 app.include_router(compliance.router)
 app.include_router(fix_patterns.router)
 app.include_router(sdk.router)
+app.include_router(user.router)
 
 
 @app.get("/")
