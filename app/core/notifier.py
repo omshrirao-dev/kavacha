@@ -44,6 +44,28 @@ def format_pending_fix_notification(
     )
 
 
+# Wave 4: sent once per account, on day 12 of the trial (see
+# app/core/accounts.py's WARNING_DAY and the daily scheduler job).
+def format_trial_warning_notification(days_left: int) -> str:
+    return (
+        f"Your Kavacha trial ends in {days_left} days.\n"
+        "After that, you'll move to the free tier (1 project, 500 events/month) unless you're on the early-access "
+        "waitlist for paid plans -- click \"Upgrade\" anywhere in the dashboard to join it.\n"
+        "Already given us feedback? It automatically extends your trial by 15 days -- look for the survey on your "
+        "dashboard if you haven't seen it yet."
+    )
+
+
+# Security Wave 2: sent only when app/core/sessions.record_login() reports a
+# device fingerprint never seen before for this user -- not on every login.
+def format_new_login_notification(ip: str, when: str) -> str:
+    return (
+        f"New login to your Kavacha account from IP {ip} at {when}.\n"
+        "Not you? Go to Account Settings and use \"Log out of all devices\" immediately, "
+        "then change your password."
+    )
+
+
 def should_notify(project_id: str) -> bool:
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -85,6 +107,34 @@ def resolve_owner_email(owner_id: str) -> str | None:
             cur.execute("SELECT email FROM user_emails WHERE id = %s::uuid", (owner_id,))
             row = cur.fetchone()
     return row[0] if row else None
+
+
+def send_admin_alert(subject: str, message: str) -> None:
+    """For alerts with no project/owner context at all (e.g. a honeypot hit)
+    -- deliberately not a variant of send_notification, whose whole signature
+    (resolve_notification_email, resolve_owner_email) assumes an owner_id to
+    resolve. Same guarantee as the rest of this file: never raises, always
+    falls back to a log line rather than the alert silently vanishing."""
+    if not settings.admin_alert_email:
+        logger.info("ADMIN ALERT (no admin_alert_email configured): %s\n%s", subject, message)
+        return
+
+    if settings.notification_provider == "sendgrid" and settings.sendgrid_api_key:
+        mail = Mail(
+            from_email=settings.notification_from_email,
+            to_emails=settings.admin_alert_email,
+            subject=subject,
+            plain_text_content=message,
+        )
+        try:
+            client = SendGridAPIClient(settings.sendgrid_api_key)
+            response = client.send(mail)
+            logger.info("admin alert sent to %s, status=%s", settings.admin_alert_email, response.status_code)
+            return
+        except Exception:
+            logger.exception("sendgrid admin alert failed -- falling back to log")
+
+    logger.info("ADMIN ALERT (admin=%s): %s\n%s", settings.admin_alert_email, subject, message)
 
 
 def _send_via_sendgrid(owner_id: str, subject: str, message: str, email_override: str | None = None) -> None:

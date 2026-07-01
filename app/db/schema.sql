@@ -179,6 +179,114 @@ SELECT id, email FROM auth.users;
 
 GRANT SELECT ON public.user_emails TO kavacha_app;
 
+-- Security Wave 1 (invisibility layer): fake paths a real client never hits
+-- (see app/api/v1/honeypot.py) -- a hit here is a near-certain scan/bot, not
+-- a false positive from a misconfigured legitimate client. user_agent_hash,
+-- not the raw string, matches the metadata-only philosophy already used for
+-- sdk_events -- this table exists to notice a pattern, not to fingerprint.
+-- Must be created before the RLS policy block below, which references it.
+CREATE TABLE IF NOT EXISTS honeypot_hits (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    path            TEXT NOT NULL,
+    method          TEXT NOT NULL,
+    ip              TEXT,
+    user_agent_hash TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_honeypot_hits_created_at ON honeypot_hits(created_at);
+CREATE INDEX IF NOT EXISTS idx_honeypot_hits_ip ON honeypot_hits(ip);
+
+-- Security Wave 2 (session/device tracking): one row per successful login,
+-- not per request -- last_seen_at is set at insert time and isn't touched
+-- again in this wave (there's no per-request "touch" call yet, so it's
+-- effectively a synonym for created_at for now; kept as its own column so a
+-- future wave can start updating it without a migration). user_agent_hash,
+-- not the raw string, same metadata-only philosophy as honeypot_hits/
+-- sdk_events. `revoked` here is bookkeeping/visibility only -- marking a row
+-- revoked does NOT invalidate an already-issued Supabase JWT (see
+-- app/core/sessions.py and app/api/v1/user.py's /sessions/revoke-all, which
+-- calls Supabase's real admin.sign_out for actual enforcement).
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id             UUID NOT NULL,
+    device_fingerprint  TEXT NOT NULL,
+    ip                  TEXT,
+    user_agent_hash     TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_seen_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    revoked             BOOLEAN NOT NULL DEFAULT false
+);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+
+-- Client Requirements (Wave 3): one row per project, upserted in place --
+-- deliberately NOT append-only like project_memory. CEO Review needs a
+-- reliable, deterministic "what does the client currently want" answer, and
+-- this project already has a documented lesson (see the "Known limitation"
+-- section below) that semantic search over ChromaDB can miss entries as a
+-- collection grows -- reading structured fields straight from Postgres is
+-- the correct fix, not a shortcut. Each save ALSO writes append-only
+-- memory entries (stage="stage_5_client_requirements") for the historical
+-- decision log -- this table is the current-state mirror CEO Review reads
+-- directly, not a replacement for that log.
+CREATE TABLE IF NOT EXISTS project_requirements (
+    project_id           UUID PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+    core_purpose         TEXT NOT NULL,
+    must_never_do        TEXT NOT NULL,
+    response_style       TEXT NOT NULL,
+    accuracy_threshold   INTEGER NOT NULL,
+    speed_requirement_ms INTEGER,
+    target_audience      TEXT,
+    specific_rules       TEXT,
+    success_definition   TEXT,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Wave 4 (free trial): one row per user, created lazily on first touch
+-- (there is no signup endpoint of our own -- signup goes straight to
+-- Supabase -- so "auto-starts on signup" is implemented as "starts the
+-- first time this account is seen," via app/core/accounts.py's
+-- get_or_create_account()). trial_started_at never moves; trial_ends_at is
+-- what actually gates access and is the only field a trial extension
+-- touches. downgraded_at IS NULL means "still on trial, full access" --
+-- once set, free-tier limits (see app/core/accounts.py) apply going forward.
+-- No FK to auth.users, matching projects.owner_id's existing precedent
+-- (kavacha_app has no grant on auth.users itself -- Rule 4).
+CREATE TABLE IF NOT EXISTS accounts (
+    user_id               UUID PRIMARY KEY,
+    trial_started_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    trial_ends_at           TIMESTAMPTZ NOT NULL,
+    trial_extended          BOOLEAN NOT NULL DEFAULT false,
+    warning_email_sent_at  TIMESTAMPTZ,
+    downgraded_at           TIMESTAMPTZ,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Wave 4: early-access signups for paid plans that don't exist yet --
+-- collected from the waitlist modal every "Upgrade" click opens instead of
+-- a payment page. No uniqueness constraint on email: waitlisting more than
+-- once from different sources is harmless, and dedup can happen at export
+-- time rather than complicating the write path now.
+CREATE TABLE IF NOT EXISTS waitlist (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email        TEXT NOT NULL,
+    source       TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    notified_at  TIMESTAMPTZ
+);
+
+-- Wave 4: day-10 trial survey responses. Submitting one is what triggers
+-- the 15-day trial extension (app/core/accounts.py's extend_trial(), gated
+-- on accounts.trial_extended so a second submission doesn't extend twice).
+CREATE TABLE IF NOT EXISTS user_feedback (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id       UUID NOT NULL,
+    rating        INTEGER NOT NULL,
+    best_feature  TEXT,
+    improvement   TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Supabase auto-enables RLS on every table created in `public`, which
 -- defaults to deny-all once enabled. Kavacha's own backend (kavacha_app)
 -- authorizes in application code (FastAPI verifies the JWT, then filters
@@ -191,7 +299,8 @@ BEGIN
     FOREACH t IN ARRAY ARRAY[
         'projects', 'project_memory', 'issues', 'monitor_tests', 'audit_log',
         'monitor_test_runs', 'llm_usage', 'fix_patterns', 'compliance_snapshots',
-        'api_keys', 'sdk_events', 'login_attempts'
+        'api_keys', 'sdk_events', 'login_attempts', 'honeypot_hits', 'user_sessions',
+        'project_requirements', 'accounts', 'waitlist', 'user_feedback'
     ]
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS kavacha_app_full_access ON %I', t);

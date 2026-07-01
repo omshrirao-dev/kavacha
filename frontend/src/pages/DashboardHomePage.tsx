@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AccountStatusPanel } from '../components/AccountStatusPanel'
 import { BentoCard } from '../components/ui/BentoCard'
 import { CountUp } from '../components/ui/CountUp'
 import { HealthBadge } from '../components/HealthBadge'
@@ -153,6 +154,8 @@ export function DashboardHomePage() {
           + Add New Project
         </Link>
       </div>
+
+      <AccountStatusPanel />
 
       {projects.length > 0 && <HealthOverview projects={projects} />}
 

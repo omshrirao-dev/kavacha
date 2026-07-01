@@ -25,6 +25,7 @@ export function AccountSettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [revokingSessions, setRevokingSessions] = useState(false)
 
   const isGoogleUser = session?.user.app_metadata?.provider === 'google'
 
@@ -64,6 +65,19 @@ export function AccountSettingsPage() {
       setError(err instanceof Error ? err.message : 'Failed to update password')
     } finally {
       setSavingPassword(false)
+    }
+  }
+
+  async function handleRevokeAllSessions() {
+    setRevokingSessions(true)
+    setError(null)
+    try {
+      await apiFetch('/api/v1/user/sessions/revoke-all', { method: 'POST' })
+      showToast('Logged out of all devices')
+      await logout()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to revoke sessions')
+      setRevokingSessions(false)
     }
   }
 
@@ -148,6 +162,22 @@ export function AccountSettingsPage() {
           </form>
         </BentoCard>
       )}
+
+      <BentoCard className="mb-4">
+        <p className="mb-1 text-sm font-medium text-ink">Sessions</p>
+        <p className="mb-3 text-sm text-ink-dim">
+          Signs you out everywhere -- use this if you don't recognize a "new login" alert email, or think a device may
+          be compromised.
+        </p>
+        <button
+          type="button"
+          onClick={handleRevokeAllSessions}
+          disabled={revokingSessions}
+          className="rounded-md border border-edge px-4 py-2 text-sm text-ink-dim hover:border-saffron-bright disabled:opacity-50"
+        >
+          {revokingSessions ? 'Logging out everywhere...' : 'Log out of all devices'}
+        </button>
+      </BentoCard>
 
       <BentoCard className="border-bad/30">
         <p className="mb-1 text-sm font-semibold text-bad">Delete account</p>

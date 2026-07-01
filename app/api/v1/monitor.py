@@ -1,22 +1,44 @@
+from typing import Literal
+
 from fastapi import APIRouter, Query, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.core.audit import log_access
 from app.core.limiter import limiter
 from app.core.ownership import verify_project_owner
 from app.core.scheduler import get_monitor_status, start_monitoring, stop_monitoring
+from app.core.validation import is_uuid_shaped
 from app.services.monitor_agent import get_cost_intelligence, run_track_a, run_track_b, run_track_c
 
 router = APIRouter(prefix="/api/v1/monitor", tags=["monitor"])
 
 
+def _validate_project_id(v: str) -> str:
+    if not is_uuid_shaped(v):
+        raise ValueError("project_id must be a valid UUID")
+    return v
+
+
 class ProjectIdRequest(BaseModel):
     project_id: str
+
+    @field_validator("project_id")
+    @classmethod
+    def _project_id_shape(cls, v: str) -> str:
+        return _validate_project_id(v)
 
 
 class ManualTestRequest(BaseModel):
     project_id: str
-    track: str = "all"
+    # Literal, not bare str -- previously an invalid track value silently
+    # produced an empty results dict instead of a 422 (none of the three
+    # `if body.track in (...)` branches below matched).
+    track: Literal["a", "b", "c", "all"] = "all"
+
+    @field_validator("project_id")
+    @classmethod
+    def _project_id_shape(cls, v: str) -> str:
+        return _validate_project_id(v)
 
 
 @router.post("/start")

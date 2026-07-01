@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { WaitlistModal } from './WaitlistModal'
 
 function AvatarMenu() {
   const { session, logout } = useAuth()
@@ -52,6 +53,7 @@ function AvatarMenu() {
 
 export function Layout() {
   const { session } = useAuth()
+  const [showWaitlist, setShowWaitlist] = useState(false)
 
   return (
     <div className="min-h-screen bg-surface">
@@ -68,6 +70,16 @@ export function Layout() {
               <Link to="/demo" className="hidden hover:text-ink sm:inline">
                 Live Demo
               </Link>
+              <Link to="/support" className="hidden hover:text-ink sm:inline">
+                Support
+              </Link>
+              <button
+                type="button"
+                onClick={() => setShowWaitlist(true)}
+                className="hidden rounded-md border border-saffron-bright/40 px-3 py-1.5 text-sm font-medium text-saffron-bright hover:bg-saffron-bright/10 sm:inline"
+              >
+                Upgrade
+              </button>
               <Link to="/projects/new" className="rounded-md gradient-bg px-3 py-1.5 text-sm font-medium text-surface">
                 + Add Project
               </Link>
@@ -90,8 +102,13 @@ export function Layout() {
           <Link to="/overview" className="hover:text-ink-dim">
             Overview
           </Link>
+          <Link to="/support" className="hover:text-ink-dim">
+            Support
+          </Link>
         </div>
       </footer>
+
+      {showWaitlist && <WaitlistModal source="nav_upgrade_button" onClose={() => setShowWaitlist(false)} />}
     </div>
   )
 }

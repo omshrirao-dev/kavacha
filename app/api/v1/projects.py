@@ -1,13 +1,17 @@
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr, field_validator
 
+from app.core.accounts import ProjectLimitExceeded, enforce_project_limit
 from app.core.api_keys import generate_api_key
 from app.core.audit import log_access
 from app.core.limiter import limiter
 from app.core.ownership import verify_project_owner
+from app.core.sanitize_html import strip_html
 from app.core.scheduler import start_monitoring, stop_monitoring
 from app.db.database import get_connection
 from app.memory.client import get_collection
+
+FREE_TIER_PROJECT_LIMIT_MESSAGE = "Free tier is limited to 1 project -- join the waitlist for paid plans or contact support to discuss your case."
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
@@ -48,14 +52,23 @@ class ProjectCreateRequest(BaseModel):
         v = v.strip()
         if not (1 <= len(v) <= _NAME_MAX_LEN):
             raise ValueError(f"name must be between 1 and {_NAME_MAX_LEN} characters")
-        return v
+        return strip_html(v)
 
-    @field_validator("description", "ai_model", "framework")
+    @field_validator("ai_model", "framework")
     @classmethod
-    def _description_bounds(cls, v: str | None) -> str | None:
+    def _short_field_bounds(cls, v: str | None) -> str | None:
         if v is not None and len(v) > _DESCRIPTION_MAX_LEN:
             raise ValueError(f"must be at most {_DESCRIPTION_MAX_LEN} characters")
         return v
+
+    @field_validator("description")
+    @classmethod
+    def _description_bounds(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if len(v) > _DESCRIPTION_MAX_LEN:
+            raise ValueError(f"description must be at most {_DESCRIPTION_MAX_LEN} characters")
+        return strip_html(v)
 
     @field_validator("deployed_url")
     @classmethod
@@ -88,14 +101,16 @@ class ProjectUpdateRequest(BaseModel):
         v = v.strip()
         if not (1 <= len(v) <= _NAME_MAX_LEN):
             raise ValueError(f"name must be between 1 and {_NAME_MAX_LEN} characters")
-        return v
+        return strip_html(v)
 
     @field_validator("description")
     @classmethod
     def _description_bounds(cls, v: str | None) -> str | None:
-        if v is not None and len(v) > _DESCRIPTION_MAX_LEN:
+        if v is None:
+            return v
+        if len(v) > _DESCRIPTION_MAX_LEN:
             raise ValueError(f"description must be at most {_DESCRIPTION_MAX_LEN} characters")
-        return v
+        return strip_html(v)
 
     @field_validator("deployed_url")
     @classmethod
@@ -144,6 +159,12 @@ def create_project(request: Request, response: Response, body: ProjectCreateRequ
     "+ Add New Project" need. The key is returned exactly once, same
     guarantee as POST .../api-keys."""
     owner_id = request.state.user["sub"]
+
+    try:
+        enforce_project_limit(owner_id)
+    except ProjectLimitExceeded:
+        raise HTTPException(status_code=403, detail=FREE_TIER_PROJECT_LIMIT_MESSAGE)
+
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(

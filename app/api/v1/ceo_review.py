@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.core.limiter import limiter
 from app.core.ownership import verify_project_owner
+from app.core.validation import is_uuid_shaped
 from app.services.ceo_review_agent import RequirementIssue, run_ceo_review
 
 router = APIRouter(prefix="/api/v1/ceo_review", tags=["ceo_review"])
@@ -10,6 +11,13 @@ router = APIRouter(prefix="/api/v1/ceo_review", tags=["ceo_review"])
 
 class CEOReviewRunRequest(BaseModel):
     project_id: str
+
+    @field_validator("project_id")
+    @classmethod
+    def _project_id_shape(cls, v: str) -> str:
+        if not is_uuid_shaped(v):
+            raise ValueError("project_id must be a valid UUID")
+        return v
 
 
 class CEOReviewRunResponse(BaseModel):

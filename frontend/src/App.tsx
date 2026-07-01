@@ -15,9 +15,11 @@ import { ProjectMemoryPage } from './pages/ProjectMemoryPage'
 import { ProjectMonitorPage } from './pages/ProjectMonitorPage'
 import { ProjectNewPage } from './pages/ProjectNewPage'
 import { ProjectOverviewPage } from './pages/ProjectOverviewPage'
+import { ProjectRequirementsPage } from './pages/ProjectRequirementsPage'
 import { ProjectReviewPage } from './pages/ProjectReviewPage'
 import { ProjectSdkSetupPage } from './pages/ProjectSdkSetupPage'
 import { ProjectSettingsPage } from './pages/ProjectSettingsPage'
+import { SupportPage } from './pages/SupportPage'
 import { TermsPage } from './pages/TermsPage'
 
 function App() {
@@ -40,11 +42,13 @@ function App() {
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/dashboard" element={<DashboardHomePage />} />
         <Route path="/settings" element={<AccountSettingsPage />} />
+        <Route path="/support" element={<SupportPage />} />
         <Route path="/projects/new" element={<ProjectNewPage />} />
         <Route path="/projects/:projectId/overview" element={<ProjectOverviewPage />} />
         <Route path="/projects/:projectId/memory" element={<ProjectMemoryPage />} />
         <Route path="/projects/:projectId/issues" element={<ProjectIssuesPage />} />
         <Route path="/projects/:projectId/review" element={<ProjectReviewPage />} />
+        <Route path="/projects/:projectId/requirements" element={<ProjectRequirementsPage />} />
         <Route path="/projects/:projectId/monitor" element={<ProjectMonitorPage />} />
         <Route path="/projects/:projectId/sdk-setup" element={<ProjectSdkSetupPage />} />
         <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />

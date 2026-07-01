@@ -60,7 +60,7 @@ This is what's actually built and running, not the long-term vision. See [the gl
 | 2 — AI Architect | Interrogates the idea, produces a spec across 8 layers | **Built** — [`architect_agent.py`](app/services/architect_agent.py), stores 8 layers + discovery as 9 memory entries |
 | 3 — AI Builder | Directs Claude Code layer by layer | Not built in V1 — out of scope for a 21-day proof of concept |
 | 4 — AI Auditor | Reviews every layer, raises and fixes issues | Folded into Stage 5 below for V1 |
-| 5 — AI CEO Client | Switches role to demanding client, compares promise vs. delivery | **Built** — [`ceo_review_agent.py`](app/services/ceo_review_agent.py), real LLM verdicts with severity-tagged gaps |
+| 5 — AI CEO Client | Switches role to demanding client, compares promise vs. delivery | **Built** — [`ceo_review_agent.py`](app/services/ceo_review_agent.py), real LLM verdicts with severity-tagged gaps. Reads `project_requirements` (Client Requirements, below) directly from Postgres and the project's `monitor_tests` pass rates alongside Stage 2 memory, so a verdict can name a specific gap in numbers ("client requires 95% accuracy, measured 87%") instead of a generic pass/fail. |
 | 6 — Deploy | Manages deployment, generates docs | Done manually for V1 (this deployment), not yet agent-driven |
 | 7 — AI Permanent Engineer | Monitors, diagnoses, fixes, verifies, notifies, forever | **Built** — Monitor Agent (3 tracks) + Fix Engine + notification, detailed below |
 
@@ -71,6 +71,14 @@ The core differentiator, and the one piece every other stage depends on.
 - **Dual-write**: every decision is written to both Postgres (`project_memory` — structured, queryable by stage/layer/timestamp) and ChromaDB (semantic search by meaning, not keyword).
 - **`source` field** distinguishes AI-authored decisions (`"ai"`, from the Architect/CEO Review/Monitor agents) from human/SDK-logged ones (`"human"`, from `kavacha.log_decision()`) — so "why did we do this" can be answered honestly about who actually made the call.
 - **Sanitized on write, not on read**: `sanitize_content()` runs inside `store_memory()` itself, so every consumer of memory — including future code that doesn't exist yet — gets sanitized content for free, rather than relying on every reader to remember to sanitize.
+
+## Client Requirements
+
+Lets the user tell Kavacha explicitly what their client/end user expects — core purpose, what the AI must never do, response style, accuracy threshold, speed requirement, target audience, specific rules, success definition (`app/api/v1/requirements.py`, `ProjectRequirementsPage.tsx`, the "Requirements" project tab).
+
+- **`project_requirements` is upserted, not append-only** — a deliberate exception to Project Memory's append-only rule. CEO Review needs a reliable, current-state answer to "what does the client want right now," and this project already has a documented lesson (see [SECURITY.md's "Known limitation"](SECURITY.md#known-limitation-not-yet-fixed)) that ChromaDB's approximate search can miss entries as a collection grows — reading structured fields straight from Postgres is the fix that was already called out as correct, applied here from the start rather than discovered the same way twice.
+- Each save **also** writes one append-only memory entry per field (`stage="stage_5_client_requirements"`) — the historical decision log lives there; the table is only the current-state mirror CEO Review reads directly.
+- **Side effect, not the main point**: this closes a real pre-existing gap. `run_ceo_review()` used to 400 unconditionally for any project with no Stage 2 Architect Agent memory — which is every self-serve project (`POST /api/v1/projects`, the primary onboarding path since the Real-Product Upgrade), since that path never calls the Architect Agent at all. CEO Review was previously unusable for those projects; it now runs as long as *either* Stage 2 memory *or* Client Requirements exists.
 
 ## Monitor Agent — 3 tracks
 
@@ -141,7 +149,9 @@ All routes below are under the live backend's base URL. Dashboard routes require
 | GET | `/api/v1/projects/{id}/issues` | Every issue Kavacha has detected for a project |
 | POST | `/api/v1/projects/{id}/api-keys` | Issue a new SDK API key (raw key returned once) |
 | GET | `/api/v1/projects/{id}/api-keys` | List a project's keys (prefix only, never the raw key) |
-| POST | `/api/v1/ceo_review/run` | Run the CEO Review Agent (Stage 5) |
+| POST | `/api/v1/ceo_review/run` | Run the CEO Review Agent (Stage 5) -- checks against Client Requirements when present |
+| GET | `/api/v1/projects/{id}/requirements` | Fetch a project's current Client Requirements (`null` if never set) |
+| PUT | `/api/v1/projects/{id}/requirements` | Upsert a project's Client Requirements |
 | POST | `/api/v1/monitor/start` | Start the Monitor Agent's 3 scheduled tracks for a project |
 | POST | `/api/v1/monitor/stop` | Stop them |
 | GET | `/api/v1/monitor/status` | Whether each track is scheduled and its next run time |
@@ -152,6 +162,21 @@ All routes below are under the live backend's base URL. Dashboard routes require
 | GET | `/api/v1/sdk/ping` | SDK connectivity check (API-key auth) |
 | POST | `/api/v1/sdk/decisions` | `kavacha.log_decision()` lands here |
 | POST | `/api/v1/sdk/watch-events` | `kavacha.watch()` call metadata lands here |
+| GET | `/api/v1/user/account-status` | Trial days left / free-tier usage vs. limits |
+| POST | `/api/v1/user/feedback` | Day-10 trial survey -- extends the trial 15 days once |
+| POST | `/api/v1/waitlist` | Join the early-access waitlist (the "Upgrade" button's destination -- no payment flow exists yet) |
+| POST | `/api/v1/support/bug-report` | Bug report -- pages the admin directly, no ticket queue |
+| POST | `/api/v1/support/project-addition` | "Add my project for me" manual-onboarding request -- pages the admin, no automation |
+
+## Free trial &amp; free tier
+
+No billing exists yet -- this is a 15-day full-access trial with no card required, not a paid plan.
+
+- **Trial starts on first touch, not a signup webhook.** There's no Kavacha-side signup endpoint (signup goes straight to Supabase), so `app/core/accounts.py`'s `get_or_create_account()` lazily creates an `accounts` row -- keyed by Supabase user id, no FK to `auth.users` (same precedent as `projects.owner_id`) -- the first time any endpoint checks plan status. Functionally identical to "starts on signup" for every real new user, and also means existing users get a fair 15-day trial retroactively rather than being silently downgraded the moment this shipped.
+- **`trial_started_at` never moves; `trial_ends_at` is the only field an extension touches.** Day-10/day-12 timing is always relative to the original start, even after an extension -- only the actual downgrade date moves.
+- **Day-10 survey submission extends the trial by 15 days, once** (`user_feedback` table + `accounts.trial_extended` guard). Day-12 sends a "days left" email (`app/core/notifier.py`'s `format_trial_warning_notification`). Both are driven by one new global (not per-project) APScheduler cron job, `app/core/scheduler.py`'s `_run_trial_checks()`, running daily -- the one job in that file not scoped to a single project.
+- **Free tier enforcement (`accounts.downgraded_at IS NOT NULL`)**: 1 project, 500 SDK events/month (calendar month, counted from `sdk_events` joined to the caller's `projects`). Enforced at the two write paths that matter -- `POST /api/v1/projects` and `POST /api/v1/sdk/watch-events` -- via `app/core/accounts.py`'s `enforce_project_limit()`/`enforce_event_limit()`, not by disabling or deleting anything a downgraded account already has.
+- **No payment code exists anywhere in this repo.** "Upgrade" (nav bar, dashboard usage panel) opens a waitlist modal (`WaitlistModal.tsx`) that writes to a `waitlist` table -- building the actual paid-plan waitlist before billing exists, not a placeholder for one.
 
 ## Known limitations (V1, documented honestly)
 

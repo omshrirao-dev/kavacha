@@ -53,6 +53,29 @@ export interface Issue {
   estimated_cost_impact: string | null
 }
 
+export interface AccountStatus {
+  status: 'trial' | 'free'
+  trial_days_left: number
+  trial_extended: boolean
+  survey_available: boolean
+  project_limit: number | null
+  projects_used: number
+  events_limit: number | null
+  events_used_this_month: number
+}
+
+export interface ProjectRequirements {
+  core_purpose: string
+  must_never_do: string
+  response_style: string
+  accuracy_threshold: number
+  speed_requirement_ms: number | null
+  target_audience: string | null
+  specific_rules: string | null
+  success_definition: string | null
+  updated_at: string
+}
+
 export interface RequirementIssue {
   requirement_reference: string
   gap_description: string

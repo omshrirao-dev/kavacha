@@ -8,6 +8,7 @@ export function ProjectTabs({ projectId }: { projectId: string }) {
     { label: 'Memory', to: `/projects/${projectId}/memory` },
     { label: 'Issues', to: `/projects/${projectId}/issues` },
     { label: 'CEO Review', to: `/projects/${projectId}/review` },
+    { label: 'Requirements', to: `/projects/${projectId}/requirements` },
     { label: 'Monitor', to: `/projects/${projectId}/monitor` },
     { label: 'SDK Setup', to: `/projects/${projectId}/sdk-setup` },
     { label: 'Settings', to: `/projects/${projectId}/settings` },

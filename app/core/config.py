@@ -41,6 +41,20 @@ class Settings(BaseSettings):
     sendgrid_api_key: str | None = None
     notification_from_email: str = "alerts@kavacha.dev"
 
+    # Security Wave 1: where honeypot hits (and future admin-only alerts) get
+    # sent -- deliberately separate from notification_email on `projects`,
+    # since these have no project/owner context at all. None means "log only"
+    # (see app/core/notifier.py's send_admin_alert), the same safe default
+    # notification_provider="log" already uses.
+    admin_alert_email: str | None = None
+
+    # Security Wave 2: no hCaptcha account exists yet -- None means
+    # app/core/captcha.py's verify_captcha() always passes (login lockout
+    # tiers still apply on their own). Set to the secret key from the
+    # hCaptcha dashboard to require a solved CAPTCHA once a login has enough
+    # failed attempts (see login_security.CAPTCHA_REQUIRED_AFTER_ATTEMPTS).
+    hcaptcha_secret_key: str | None = None
+
     # Comma-separated list of allowed frontend origins. Never "*" -- the
     # dashboard sends an Authorization header, and CORS forbids combining
     # a wildcard origin with credentialed requests anyway.

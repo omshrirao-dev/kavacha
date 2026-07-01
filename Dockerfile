@@ -52,4 +52,4 @@ EXPOSE 8000
 # Single worker (not --workers N): APScheduler's BackgroundScheduler keeps
 # jobs in this process's memory only -- multiple workers would each run
 # their own copy of every monitor job, duplicating issues and notifications.
-CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*' --no-server-header

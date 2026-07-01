@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { ProjectHeader } from '../components/ProjectHeader'
 import { ProjectTabs } from '../components/ProjectTabs'
@@ -115,9 +115,16 @@ export function ProjectReviewPage() {
     <div>
       <ProjectHeader projectId={projectId} />
       <ProjectTabs projectId={projectId} />
-      <p className="mb-6 text-sm text-ink-dim">
+      <p className="mb-2 text-sm text-ink-dim">
         The Critic -- the AI switches roles entirely, becoming the demanding client comparing what was promised against
         what was delivered.
+      </p>
+      <p className="mb-6 text-sm text-ink-faint">
+        Reviews check against your stated{' '}
+        <Link to={`/projects/${projectId}/requirements`} className="text-saffron-bright hover:underline">
+          Client Requirements
+        </Link>{' '}
+        every time this runs -- fill those in for a specific verdict instead of a generic one.
       </p>
 
       <button
